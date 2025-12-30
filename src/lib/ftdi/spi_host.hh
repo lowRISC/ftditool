@@ -13,6 +13,7 @@
 #include <array>
 #include <iostream>
 #include "log.hh"
+#include "ftdi.hh"
 
 namespace ftdi {
 
