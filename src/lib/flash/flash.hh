@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ftdi/spi_host.hh"
+#include "jedec.hh"
 #include <format>
 #include <cstring>
 #include <bit>
@@ -49,19 +50,6 @@ enum Opcode : uint8_t {
   PageProgram4b   = 0x12,
 };
 
-struct [[gnu::packed]] Jedec {
-  uint16_t device_id;
-  uint8_t manufacturer_id;
-  uint8_t continuation_len;
-
-  static Jedec from(const std::array<uint8_t, 4> arr) { return std::bit_cast<Jedec>(arr); }
-
-  static Jedec from(const std::span<uint8_t, 4> slice) {
-    std::array<uint8_t, 4> arr{slice[0], slice[1], slice[2], slice[3]};
-    return from(arr);
-  }
-};
-
 using Page = std::array<uint8_t, 256>;
 
 enum class Status1 : uint8_t {
@@ -89,12 +77,3 @@ class Generic {
   Option<bool> wait_not_busy();
 };
 }  // namespace flash
-
-template <>
-struct std::formatter<flash::Jedec> {
-  constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }
-  auto format(const flash::Jedec& info, std::format_context& ctx) const {
-    return std::format_to(ctx.out(), "Jedec: {{\n\tdid: {:#x}\n\tmid: {:#x}\n\tcont_len: {}}}\n",
-                          info.device_id, info.manufacturer_id, info.continuation_len);
-  }
-};
