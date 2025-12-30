@@ -4,6 +4,7 @@
 
 #include "flash.hh"
 #include "ftdi/spi_host.hh"
+#include "ftdi/spi_host.hh"
 #include <format>
 #include <cstring>
 #include <bit>
@@ -16,7 +17,6 @@ Option<Jedec> Generic::jedec() {
       Opcode::ReadJedec,
   };
   if (auto res = spih.transfer(cmd)) {
-    std::cout << std::format("{} -> {} \n", __func__, *res);
     return Jedec::from(res->last<4>());
   }
   return std::nullopt;

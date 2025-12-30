@@ -25,8 +25,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(magic_enum)
 
 add_subdirectory(src/lib/flash)
+add_subdirectory(src/lib/ftdi)
 
 add_executable(ftditool src/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")
-target_link_libraries(ftditool PRIVATE flash argparse magic_enum ft4222)
+target_link_libraries(ftditool PRIVATE flash ftdi argparse magic_enum ft4222)
 

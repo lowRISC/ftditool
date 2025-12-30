@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
+#include <iostream>
 #include "device_info.hh"
 
 namespace ftdi {
