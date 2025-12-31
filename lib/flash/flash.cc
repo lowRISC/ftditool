@@ -4,10 +4,8 @@
 
 #include "flash.hh"
 #include "ftdi/spi_host.hh"
-#include "ftdi/spi_host.hh"
 #include <format>
-#include <cstring>
-#include <bit>
+#include <cstdint>
 #include <algorithm>
 
 namespace flash {

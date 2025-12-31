@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "libft4222.h"
 #include "ftd2xx.h"
 #include <cstdint>
 #include <optional>

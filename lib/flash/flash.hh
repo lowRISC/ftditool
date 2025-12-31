@@ -6,10 +6,7 @@
 
 #include "ftdi/spi_host.hh"
 #include "jedec.hh"
-#include <format>
-#include <cstring>
-#include <bit>
-#include <algorithm>
+#include <cstdint>
 
 namespace flash {
 

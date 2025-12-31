@@ -8,6 +8,7 @@
 #include <vector>
 #include <format>
 #include <magic_enum/magic_enum.hpp>
+#include <libft4222.h>
 
 namespace ftdi {
 enum class DeviceType {
