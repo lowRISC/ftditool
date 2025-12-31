@@ -10,7 +10,7 @@
 
 #include "ftdi/ftdi.hh"
 #include "flash/flash.hh"
-#include "log.hh"
+#include "ftdi/log.hh"
 
 #include <argparse/argparse.hpp>
 

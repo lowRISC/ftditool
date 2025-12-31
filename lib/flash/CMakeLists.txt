@@ -18,12 +18,11 @@ target_sources(flash
 
 target_include_directories(flash
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include/flash>
 )
 
 target_link_libraries(flash
-    PRIVATE magic_enum
+    PRIVATE magic_enum ftdipp
 )
 
