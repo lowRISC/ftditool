@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ftdi/ftdi.hh"
+#include "ftdi/spi_host.hh"
 #include "flash/flash.hh"
 #include "ftdi/log.hh"
 

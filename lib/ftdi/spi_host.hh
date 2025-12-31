@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include "libft4222.h"
 #include "ftdi.hh"
+#include "embeddedpp/helpers.hh"
 
 namespace ftdi {
 // SPI Master can assert SS0O in single mode
@@ -24,7 +26,7 @@ class SpiHost {
   explicit SpiHost(FT_HANDLE handle) noexcept : handle(handle) {}
   ~SpiHost() { FT_Close(handle); }
 
-  Result transfer(std::span<uint8_t> payload, bool deassert_cs = true);
+  embeddedpp::Result<std::span<uint8_t>> transfer(std::span<uint8_t> payload);
 
   bool write(std::span<uint8_t> payload, bool deassert_cs = true);
 

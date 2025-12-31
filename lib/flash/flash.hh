@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ftdi/spi_host.hh"
+#include "embeddedpp/spi.hh"
 #include "jedec.hh"
 #include <cstdint>
 
@@ -58,19 +58,106 @@ enum class Status1 : uint8_t {
   SR_Lock     = 0x01 << 7   // Bit 7
 };
 
+template <embeddedpp::SpiHost T>
 class Generic {
-  ftdi::SpiHost& spih;
+  T& spih;
 
  public:
-  Generic(ftdi::SpiHost& spih) : spih(spih) {};
-  Option<Jedec> jedec();
-  Option<Page> single_read_page(uint32_t address);
-  Option<uint8_t> read_status1();
-  Option<bool> erase(uint32_t address, Opcode op = Opcode::SectorErase);
-  Option<bool> reset();
-  Option<bool> write_enable(bool enable = true);
-  Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data);
-  Option<bool> is_busy();
-  Option<bool> wait_not_busy();
+  Generic(T& spih) : spih(spih) {};
+
+  Option<Jedec> jedec() {
+    std::array<uint8_t, 5> cmd = {
+        Opcode::ReadJedec,
+    };
+    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
+    return Jedec::from(ret.last<4>());
+  }
+
+  Option<Page> single_read_page(uint32_t address) {
+    std::array<uint8_t, 256 + 4> cmd = {
+        Opcode::Read,
+        static_cast<uint8_t>(address >> 16),
+        static_cast<uint8_t>(address >> 8),
+        static_cast<uint8_t>(address >> 0),
+    };
+
+    auto ret = TRY_OPT(spih.transfer(cmd));
+
+    Page page;
+    std::copy(ret.begin() + 4, ret.end(), page.begin());
+    return Option{page};
+  }
+
+  Option<uint8_t> read_status1() {
+    std::array<uint8_t, 2> cmd = {
+        Opcode::ReadStatus1,
+    };
+    auto ret = TRY_OPT(spih.transfer(cmd));
+    return ret[1];
+  }
+
+  Option<bool> erase(uint32_t address, Opcode op = Opcode::SectorErase) {
+    write_enable();
+    std::array<uint8_t, 4> cmd = {
+        op,
+        static_cast<uint8_t>(address >> 16),
+        static_cast<uint8_t>(address >> 8),
+        static_cast<uint8_t>(address >> 0),
+    };
+    auto ret = spih.transfer(cmd);
+    if (embeddedpp::is_error(ret)) {
+      return std::nullopt;
+    }
+    return wait_not_busy();
+  }
+
+  Option<bool> reset() {
+    std::array<uint8_t, 1> cmd = {
+        Opcode::Reset,
+    };
+    TRY_OPT(spih.transfer(cmd));
+    return true;
+  }
+
+  Option<bool> write_enable(bool enable = true) {
+    std::array<uint8_t, 1> cmd = {
+        enable ? Opcode::WriteEnable : Opcode::WriteDisable,
+    };
+    TRY_OPT(spih.transfer(cmd));
+    return true;
+  }
+
+  Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
+    write_enable();
+    std::array<uint8_t, 256 + 4> cmd = {
+        Opcode::PageProgram,
+        static_cast<uint8_t>(address >> 16),
+        static_cast<uint8_t>(address >> 8),
+        static_cast<uint8_t>(address >> 0),
+    };
+
+    auto slice = std::span<uint8_t>(cmd).last<256>();
+    std::copy(data.begin(), data.end(), slice.begin());
+    TRY_OPT(spih.transfer(cmd));
+    wait_not_busy();
+    return write_enable(false);
+  }
+
+  Option<bool> is_busy() {
+    if (auto status = read_status1()) {
+      auto mask = static_cast<uint8_t>(Status1::Busy);
+      return (*status & mask) == mask;
+    }
+    return std::nullopt;
+  }
+
+  Option<bool> wait_not_busy() {
+    while (auto busy = is_busy()) {
+      if (*busy == false) {
+        return true;
+      }
+    }
+    return std::nullopt;
+  }
 };
 }  // namespace flash

@@ -24,8 +24,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
-add_subdirectory(lib/flash)
+add_subdirectory(lib/embeddedpp)
 add_subdirectory(lib/ftdi)
+add_subdirectory(lib/flash)
 
 add_executable(ftditool app/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")

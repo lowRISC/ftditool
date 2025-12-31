@@ -15,22 +15,22 @@
 #include "spi_host.hh"
 
 namespace ftdi {
-Result SpiHost::transfer(std::span<uint8_t> payload, bool deassert_cs) {
+embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
   uint16_t received = 0;
 
   FT4222_STATUS status;
   status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(), payload.size(),
-                                            &received, deassert_cs);
+                                            &received, true);
   if (FT4222_OK != status) {
     std::cerr << std::format("write: SingleReadWrite:{}\n", status);
-    return std::nullopt;
+    return embeddedpp::Code::Generic;
   }
 
   if (received < payload.size()) {
     std::cerr << std::format("Wrote only {}/{}\n", payload, payload.size());
-    return std::nullopt;
+    return embeddedpp::Code::Generic;
   }
-  return Result{payload};
+  return payload;
 }
 
 bool SpiHost::write(std::span<uint8_t> payload, bool deassert_cs) {

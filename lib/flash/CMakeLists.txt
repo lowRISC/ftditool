@@ -3,12 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-add_library(flash)
+add_library(flash INTERFACE)
 
 target_sources(flash
-    PRIVATE
-        flash.cc
-    PUBLIC
+    INTERFACE
         FILE_SET HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES
@@ -17,12 +15,12 @@ target_sources(flash
 )
 
 target_include_directories(flash
-    PUBLIC
+    INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include/flash>
 )
 
 target_link_libraries(flash
-    PRIVATE magic_enum ftdipp
+  INTERFACE magic_enum embeddedpp
 )
 

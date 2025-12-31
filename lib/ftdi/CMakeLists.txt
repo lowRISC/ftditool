@@ -23,6 +23,7 @@ target_include_directories(ftdipp
 )
 
 target_link_libraries(ftdipp
-    PUBLIC magic_enum ft4222
+    PUBLIC magic_enum embeddedpp ft4222
 )
+target_compile_options(ftdipp PRIVATE "-fno-exceptions")
 
