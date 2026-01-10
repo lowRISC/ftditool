@@ -68,11 +68,12 @@ class Generic {
   Generic(T& spih) : spih(spih) {};
 
   Option<Jedec> jedec() {
-    std::array<uint8_t, 5> cmd = {
+    std::array<uint8_t, 1 + sizeof(Jedec)> cmd = {
         Opcode::ReadJedec,
     };
     std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
-    return Jedec::from(ret.last<4>());
+    return Jedec::from(ret.last<sizeof(Jedec)>());
+  }
 
   Option<Sfdp> sfdp() {
     std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {
@@ -97,12 +98,64 @@ class Generic {
     return Option{page};
   }
 
-  Option<uint8_t> read_status1() {
+  Option<Page> quad_read_page(uint32_t address) {
+    std::array<uint8_t, 1> cmd = {
+        Opcode::ReadQuad,
+    };
+
+    std::array<uint8_t, 3> addr = {
+        static_cast<uint8_t>(address >> 16),
+        static_cast<uint8_t>(address >> 8),
+        static_cast<uint8_t>(address >> 0),
+    };
+
+    Page page;
+    std::array<embeddedpp::Transfer, 3> transfers = {
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, cmd},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, addr},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Quad, page},
+    };
+
+    TRY_OPT(spih.transaction(transfers));
+
+    return Option{page};
+  }
+
+  Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
     std::array<uint8_t, 2> cmd = {
-        Opcode::ReadStatus1,
+        code,
     };
     auto ret = TRY_OPT(spih.transfer(cmd));
     return ret[1];
+  }
+
+  Option<bool> write_status(uint8_t val, Opcode code = Opcode::WriteStatus1) {
+    std::array<uint8_t, 2> cmd = {code, val};
+    auto ret                   = TRY_OPT(spih.transfer(cmd));
+    return true;
+  }
+
+  Option<bool> enable_quad(bool enable) {
+    if (!this->sfdp_.is_valid()) {
+      if (auto _sfdp = this->sfdp()) {
+        this->sfdp_ = *_sfdp;
+      } else {
+        return std::nullopt;
+      }
+    }
+    if (sfdp_.get_quad_enable_mechanism() != 3) {
+      // TODO:
+      return std::nullopt;
+    }
+
+    auto status = read_status(Opcode::ReadStatus2);
+    if (!status) {
+      return std::nullopt;
+    }
+    auto val = *status & ~(1 << 7);
+    val      = val | (1 << 7);
+    write_status(val, Opcode::WriteStatus2);
+    return true;
   }
 
   Option<bool> erase(uint32_t address, Opcode op = Opcode::SectorErase) {
@@ -153,7 +206,7 @@ class Generic {
   }
 
   Option<bool> is_busy() {
-    if (auto status = read_status1()) {
+    if (auto status = read_status()) {
       auto mask = static_cast<uint8_t>(Status1::Busy);
       return (*status & mask) == mask;
     }
