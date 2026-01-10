@@ -54,7 +54,7 @@ class Discovery {
                                      std::string(node.Description), node.ftHandle});
     }
 
-    return devices;
+    return std::optional<std::vector<DeviceInfo>>{devices};
   }
 };
 

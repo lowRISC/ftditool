@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include <iostream>
+#include <print>
 #include "log.hh"
 #include "ftdi.hh"
 #include "spi_host.hh"
@@ -22,16 +23,67 @@ embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payl
   status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(), payload.size(),
                                             &received, true);
   if (FT4222_OK != status) {
-    std::cerr << std::format("write: SingleReadWrite:{}\n", status);
+    std::cerr << std::format("SingleReadWrite:{}\n", status);
     return embeddedpp::Code::Generic;
   }
 
   if (received < payload.size()) {
-    std::cerr << std::format("Wrote only {}/{}\n", payload, payload.size());
+    std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
     return embeddedpp::Code::Generic;
   }
   return payload;
 }
+
+embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
+  std::vector<uint8_t> payload;
+  uint8_t single_bytes             = 0;
+  uint32_t multi_bytes             = 0;
+  uint32_t multi_bytes_read        = 0;
+  embeddedpp::SpiIoMode multi_mode = embeddedpp::SpiIoMode::Single;
+  for (auto transfer : transfers) {
+    payload.insert(payload.end(), transfer.data.begin(), transfer.data.end());
+    if (transfer.mode == embeddedpp::SpiIoMode::Single) {
+      single_bytes++;
+    } else {
+      multi_bytes++;
+      multi_bytes_read += transfer.data.size();
+      if (multi_mode != embeddedpp::SpiIoMode::Single && multi_mode != transfer.mode) {
+        // Only one multimode supported
+        return embeddedpp::Code::SpiMultiModeError;
+      }
+      multi_mode = transfer.mode;
+    }
+  }
+
+  auto map_mode = [](embeddedpp::SpiIoMode mode) -> FT4222_SPIMode {
+    switch (mode) {
+      case embeddedpp::SpiIoMode::Quad:
+        return SPI_IO_QUAD;
+      case embeddedpp::SpiIoMode::Dual:
+        return SPI_IO_DUAL;
+      case embeddedpp::SpiIoMode::Single:
+      default:
+        return SPI_IO_SINGLE;
+    }
+  };
+
+  uint32_t received = 0;
+  FT4222_STATUS status;
+  status = FT4222_SPIMaster_SetLines(handle, map_mode(multi_mode));
+  if (FT4222_OK != status) {
+    std::cerr << std::format("SetLines:{}\n", status);
+    return embeddedpp::Code::Generic;
+  }
+
+  status = FT4222_SPIMaster_MultiReadWrite(handle, payload.data(), payload.data(), single_bytes,
+                                           multi_bytes, multi_bytes_read, &received);
+  if (FT4222_OK != status) {
+    std::cerr << std::format("MultiReadWrite:{}\n", status);
+    return embeddedpp::Code::Generic;
+  }
+
+  return embeddedpp::Code::Ok;
+};
 
 bool SpiHost::write(std::span<uint8_t> payload, bool deassert_cs) {
   uint16_t received = 0;

@@ -28,6 +28,8 @@ class SpiHost {
 
   embeddedpp::Result<std::span<uint8_t>> transfer(std::span<uint8_t> payload);
 
+  embeddedpp::Status transaction(embeddedpp::Transfers transfers);
+
   bool write(std::span<uint8_t> payload, bool deassert_cs = true);
 
   Result read(uint32_t size, bool deassert_cs = true);
