@@ -1,0 +1,52 @@
+# Copyright lowRISC Contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: "nix develop -c bash -e {0}"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: License check
+        uses: fsfe/reuse-action@v6
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            substituters = https://nix-cache.lowrisc.org/public/ https://cache.nixos.org/
+            trusted-public-keys = nix-cache.lowrisc.org-public-1:O6JLD0yXzaJDPiQW1meVu32JIDViuaPtGDfjlOopU7o= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+
+      - name: Prepare Nix environment
+        run: |
+          true
+
+      - name: Generate software buildsystem
+        run: |
+          cmake -B build -S .
+
+      - name: Lint - Clang Format
+        run: |
+          ./clang-format.sh check
+
+      - name: Build software
+        run: |
+          cmake --build build -j $(nproc)
+
+      - name: Nix build
+        run: |
+          nix build
