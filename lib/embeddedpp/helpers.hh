@@ -14,13 +14,28 @@ namespace embeddedpp {
 
 using Data = std::span<uint8_t>;
 
+enum class SpiIoMode {
+  Single,
+  Dual,
+  Quad,
+};
+
+struct Transfer {
+  SpiIoMode mode;
+  Data data;
+};
+
+using Transfers = std::span<Transfer>;
+
 enum class Code {
   Ok,
+  SpiMultiModeError,  // Dual and Quad modes not suported in the same transaction.
   Generic,
 };
 
 template <typename T>
 using Result = std::variant<T, Code>;
+using Status = Result<std::monostate>;
 
 /**
  * @brief Returns whether the given Result contains an error.
@@ -47,7 +62,8 @@ bool is_error(Result<T> res) {
  *
  * @pre The Result must not contain an error.
  *
- * @warning If `res` contains a Code error, this function throws `std::bad_variant_access`.
+ * @warning If `res` contains a Code error, this function throws
+ * `std::bad_variant_access`.
  */
 template <typename T>
 T unwrap(Result<T> res) {
@@ -75,8 +91,8 @@ T unwrap_or(Result<T> res, T value) {
  *
  * @tparam T The success value type stored in the Result.
  * @param res The Result to convert.
- * @return std::optional containing the success value if present, or std::nullopt if `res` is an
- * error.
+ * @return std::optional containing the success value if present, or std::nullopt if `res`
+ * is an error.
  */
 template <typename T>
 std::optional<T> to_optional(Result<T> res) {

@@ -6,13 +6,16 @@
 #pragma once
 
 #include <concepts>
+#include <span>
 #include "helpers.hh"
 
 namespace embeddedpp {
 
 template <typename T>
-concept SpiHost = requires(T device, Data data) {
+concept SpiHost = requires(T device, Data data, Transfers transfers) {
   { device.transfer(data) } -> std::same_as<Result<Data>>;
+
+  { device.transaction(transfers) } -> std::same_as<Status>;
 };
 
 }  // namespace embeddedpp
