@@ -30,6 +30,7 @@
             llvmPackages_21.llvm
             cmake
             gnumake
+            reuse
           ];
           buildInputs = [ft4222];
         };
