@@ -6,6 +6,7 @@
 
 #include "embeddedpp/spi.hh"
 #include "jedec.hh"
+#include "sfdp.hh"
 #include <cstdint>
 
 namespace flash {
@@ -61,6 +62,7 @@ enum class Status1 : uint8_t {
 template <embeddedpp::SpiHost T>
 class Generic {
   T& spih;
+  Sfdp sfdp_;
 
  public:
   Generic(T& spih) : spih(spih) {};
@@ -71,6 +73,13 @@ class Generic {
     };
     std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
     return Jedec::from(ret.last<4>());
+
+  Option<Sfdp> sfdp() {
+    std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {
+        Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00,
+    };
+    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
+    return Sfdp::try_from(ret.subspan(5));
   }
 
   Option<Page> single_read_page(uint32_t address) {
