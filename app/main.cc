@@ -128,6 +128,11 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
+  if (argc == 1) {
+    std::cout << program;  // This prints the auto-generated help
+    return 0;
+  }
+
   try {
     program.parse_args(argc, argv);
   } catch (const std::exception& err) {

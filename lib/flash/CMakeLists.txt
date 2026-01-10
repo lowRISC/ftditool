@@ -21,6 +21,6 @@ target_include_directories(flash
 )
 
 target_link_libraries(flash
-  INTERFACE magic_enum embeddedpp
+  INTERFACE magic_enum::magic_enum embeddedpp
 )
 
