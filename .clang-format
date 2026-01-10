@@ -16,3 +16,5 @@ AllowShortBlocksOnASingleLine : false
 BinPackArguments: true
 BinPackParameters : true
 SortIncludes : false
+BreakAfterReturnType: Automatic
+PenaltyReturnTypeOnItsOwnLine: 1

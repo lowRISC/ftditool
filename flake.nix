@@ -25,11 +25,10 @@
           name = "ftditool env";
           nativeBuildInputs = with pkgs; [
             clang_21
-              llvmPackages_21.llvm
-              cmake
-              gnumake
-              xxd
-              
+            llvmPackages_21.llvm
+            cmake
+            gnumake
+            xxd
           ];
           buildInputs = [ft4222];
         };

@@ -1,5 +1,8 @@
-{ stdenv, lib, fetchzip}:
-
+{
+  stdenv,
+  lib,
+  fetchzip,
+}:
 stdenv.mkDerivation rec {
   pname = "ftd2xx";
   version = "1.4.34";
@@ -20,6 +23,6 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "FTDI D2XX libraries";
-    platforms = [ "x86_64-linux" ];
+    platforms = ["x86_64-linux"];
   };
 }

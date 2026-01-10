@@ -52,8 +52,8 @@ struct DeviceInfo {
    * @brief Finds devices by description string.
    * @return std::nullopt if the scan failed, otherwise a vector (empty or populated).
    */
-  static std::vector<DeviceInfo> filter_by_description(std::span<DeviceInfo> list,
-                                                       const std::string& search_str) {
+  static std::vector<DeviceInfo>
+  filter_by_description(std::span<DeviceInfo> list, const std::string& search_str) {
     std::vector<DeviceInfo> filtered;
     for (const auto& dev : list) {
       if (dev.description.find(search_str) != std::string::npos) {

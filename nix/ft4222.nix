@@ -1,5 +1,8 @@
-{ stdenv, lib, fetchzip}:
-
+{
+  stdenv,
+  lib,
+  fetchzip,
+}:
 stdenv.mkDerivation rec {
   pname = "ft4222";
   version = "1.4.4.232";
@@ -12,8 +15,8 @@ stdenv.mkDerivation rec {
   dontConfigure = true;
 
   unpackPhase = ''
-      tar -xf $src/libft4222-linux-${version}.tgz
-    '';
+    tar -xf $src/libft4222-linux-${version}.tgz
+  '';
 
   installPhase = ''
     mkdir -p $out/lib $out/include
@@ -24,6 +27,6 @@ stdenv.mkDerivation rec {
 
   meta = {
     description = "FTDI FT4222 libraries";
-    platforms = [ "x86_64-linux" ];
+    platforms = ["x86_64-linux"];
   };
 }
