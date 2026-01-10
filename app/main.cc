@@ -6,18 +6,21 @@
 #include <format>
 #include <print>
 #include <map>
+#include <span>
 #include <vector>
+#include <memory>
 
 #include "ftdi/ftdi.hh"
 #include "ftdi/spi_host.hh"
 #include "flash/flash.hh"
+#include "commands.hh"
 #include "ftdi/log.hh"
 
 #include <argparse/argparse.hpp>
 
 using Action = std::function<int()>;
 
-static std::span<ftdi::DeviceInfo> scan() {
+static std::vector<ftdi::DeviceInfo> scan() {
   auto result = ftdi::Discovery::scan();
   if (!result) {
     std::cerr << "Error: Failed to communicate with FTDI driver." << std::endl;
@@ -25,10 +28,37 @@ static std::span<ftdi::DeviceInfo> scan() {
   }
   auto& devices = *result;
   if (devices.empty()) {
-    std::print("No devices found.\n");
+    std::println("No devices found.");
     exit(0);
   }
   return devices;
+}
+
+static std::unique_ptr<argparse::ArgumentParser>
+new_flash_command(const std::string& name, const std::string& desc) {
+  auto cmd = std::make_unique<argparse::ArgumentParser>(name);
+  cmd->add_description(desc);
+  cmd->add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
+  cmd->add_argument("--ftdi")
+      .default_value(std::string("FT4222"))
+      .help("Filter ftdi chips connected to USB");
+  return cmd;
+}
+
+static std::optional<ftdi::SpiHost>
+handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
+  auto ftdi     = cmd->get<std::string>("--ftdi");
+  auto devices  = scan();
+  auto filtered = ftdi::DeviceInfo::filter_by_description(devices, ftdi);
+  if (filtered.empty()) {
+    std::print("No supported ftdi found.\n");
+    exit(0);
+  }
+  if (auto opt = ftdi::SpiHost::from_device_info(filtered[0])) {
+    return opt;
+  }
+  std::println("Can't open spi.");
+  exit(0);
 }
 
 int main(int argc, char* argv[]) {
@@ -47,91 +77,54 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  argparse::ArgumentParser jedec_cmd("jedec");
-  jedec_cmd.add_description("Test the ftdi connection.");
-  jedec_cmd.add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
-  jedec_cmd.add_argument("--ftdi").default_value("FT4222").help(
-      "Filter ftdi chips connected to USB");
-  program.add_subparser(jedec_cmd);
+  auto jedec_cmd = new_flash_command("jedec", "Test the ftdi connection.");
+  program.add_subparser(*jedec_cmd);
   commands["jedec"] = [&]() -> int {
-    auto ftdi     = jedec_cmd.get<std::string>("--ftdi");
-    auto filtered = ftdi::DeviceInfo::filter_by_description(scan(), ftdi);
-    if (filtered.empty()) {
-      std::print("No supported ftdi found.\n");
-      return 0;
-    }
-    if (auto spih = ftdi::SpiHost::from_device_info(filtered[0])) {
-      auto flash = flash::Generic(*spih);
-      if (auto jedec = flash.jedec()) {
-        std::print("{}\n", *jedec);
-      } else {
-        std::print("Jedec failed\n");
-      }
-    }
+    auto spih = handle_flash_command(jedec_cmd);
+    commands::ReadJedec(flash::Generic(*spih)).run();
     return 0;
   };
 
-  argparse::ArgumentParser read_page_cmd("read-page");
-  read_page_cmd.add_description("Test the ftdi connection.");
-  read_page_cmd.add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
-  read_page_cmd.add_argument("--ftdi").default_value("FT4222").help(
-      "Filter ftdi chips connected to USB");
-  read_page_cmd.add_argument("--addr").help("The page address").scan<'x', std::size_t>();
-  program.add_subparser(read_page_cmd);
+  auto sfdp_cmd = new_flash_command("sfdp", "Test the ftdi connection.");
+  program.add_subparser(*sfdp_cmd);
+  commands["sfdp"] = [&]() -> int {
+    auto spih = handle_flash_command(sfdp_cmd);
+    commands::ReadSfdp(flash::Generic(*spih)).run();
+    return 0;
+  };
+
+  auto read_page_cmd = new_flash_command("read-page", "Read a specific page");
+  read_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
+  program.add_subparser(*read_page_cmd);
   commands["read-page"] = [&]() -> int {
-    auto ftdi     = read_page_cmd.get<std::string>("--ftdi");
-    auto addr     = read_page_cmd.get<std::size_t>("--addr");
-    auto filtered = ftdi::DeviceInfo::filter_by_description(scan(), ftdi);
-    if (filtered.empty()) {
-      std::print("No supported ftdi found.\n");
-      return 0;
-    }
-    if (auto spih = ftdi::SpiHost::from_device_info(filtered[0])) {
-      auto flash = flash::Generic(*spih);
-
-      if (auto page = flash.single_read_page(addr)) {
-        std::print("{:#x} : {}\n", addr, *page);
-      } else {
-        std::print("page failed\n");
-      }
-    }
+    auto addr = read_page_cmd->get<std::size_t>("--addr");
+    auto spih = handle_flash_command(read_page_cmd);
+    commands::ReadPage(flash::Generic(*spih), addr).run();
     return 0;
   };
 
-  argparse::ArgumentParser write_page_cmd("write-page");
-  write_page_cmd.add_description("Test the ftdi connection.");
-  write_page_cmd.add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
-  write_page_cmd.add_argument("--ftdi").default_value("FT4222").help(
-      "Filter ftdi chips connected to USB");
-  write_page_cmd.add_argument("--addr").help("The page address").scan<'x', std::size_t>();
-  program.add_subparser(write_page_cmd);
-  commands["write-page"] = [&]() -> int {
-    auto ftdi     = write_page_cmd.get<std::string>("--ftdi");
-    auto addr     = write_page_cmd.get<std::size_t>("--addr");
-    auto filtered = ftdi::DeviceInfo::filter_by_description(scan(), ftdi);
-    if (filtered.empty()) {
-      std::print("No supported ftdi found.\n");
-      return 0;
-    }
-    if (auto spih = ftdi::SpiHost::from_device_info(filtered[0])) {
-      auto flash = flash::Generic(*spih);
+  auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back");
+  test_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
+  program.add_subparser(*test_page_cmd);
+  commands["test-page"] = [&]() -> int {
+    auto addr = test_page_cmd->get<std::size_t>("--addr");
+    auto spih = handle_flash_command(test_page_cmd);
+    commands::TestPage(flash::Generic(*spih), addr).run();
 
-      if (!flash.reset() || !flash.erase(addr)) {
-        std::print("Erase failed\n");
-        return 0;
-      }
-      std::vector<uint8_t> data(256, 0xaa);
-      if (!flash.single_page_program(addr, std::span<uint8_t, 256>(data))) {
-        std::print("Program failed\n");
-        return 0;
-      }
+    return 0;
+  };
 
-      if (auto page = flash.single_read_page(addr)) {
-        std::print("{:#x} : {}\n", addr, *page);
-      } else {
-        std::print("page failed\n");
-      }
-    }
+  auto load_file_cmd =
+      new_flash_command("load-file", "Write the content of a file to the address.");
+  load_file_cmd->add_argument("-f").help("The file path.");
+  load_file_cmd->add_argument("--addr").help("The address to be loaded").scan<'x', std::size_t>();
+  program.add_subparser(*load_file_cmd);
+  commands["load-file"] = [&]() -> int {
+    auto addr     = load_file_cmd->get<std::size_t>("--addr");
+    auto filename = load_file_cmd->get<std::string>("-f");
+    auto spih     = handle_flash_command(load_file_cmd);
+    commands::LoadFile(flash::Generic(*spih), filename, addr).run();
+
     return 0;
   };
 
