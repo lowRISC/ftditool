@@ -69,16 +69,15 @@ class Generic {
   Generic(T& spih) : spih(spih) {};
 
   Option<Jedec> jedec() {
-    std::array<uint8_t, 1 + sizeof(Jedec)> cmd = {
-        Opcode::ReadJedec,
-    };
-    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
+    std::array<uint8_t, 1 + sizeof(Jedec)> cmd = {Opcode::ReadJedec};
+    std::span<uint8_t> ret                     = TRY_OPT(spih.transfer(cmd));
     return Jedec::from(ret.last<sizeof(Jedec)>());
   }
 
   Option<Sfdp> sfdp() {
     std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00};
-    std::span<uint8_t> ret                    = TRY_OPT(spih.transfer(cmd));
+
+    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
     return Sfdp::try_from(ret.subspan(5));
   }
 
@@ -147,16 +146,15 @@ class Generic {
   }
 
   Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
-    std::array<uint8_t, 2> cmd = {
-        code,
-    };
-    auto ret = TRY_OPT(spih.transfer(cmd));
+    std::array<uint8_t, 2> cmd = {code};
+    auto ret                   = TRY_OPT(spih.transfer(cmd));
     return ret[1];
   }
 
   Option<bool> write_status(uint8_t val, Opcode code = Opcode::WriteStatus1) {
     std::array<uint8_t, 2> cmd = {code, val};
-    auto ret                   = TRY_OPT(spih.transfer(cmd));
+
+    auto ret = TRY_OPT(spih.transfer(cmd));
     return true;
   }
 
@@ -200,17 +198,13 @@ class Generic {
   }
 
   Option<bool> reset() {
-    std::array<uint8_t, 1> cmd = {
-        Opcode::Reset,
-    };
+    std::array<uint8_t, 1> cmd = {Opcode::Reset};
     TRY_OPT(spih.transfer(cmd));
     return true;
   }
 
   Option<bool> write_enable(bool enable = true) {
-    std::array<uint8_t, 1> cmd = {
-        enable ? Opcode::WriteEnable : Opcode::WriteDisable,
-    };
+    std::array<uint8_t, 1> cmd = {enable ? Opcode::WriteEnable : Opcode::WriteDisable};
     TRY_OPT(spih.transfer(cmd));
     return true;
   }
