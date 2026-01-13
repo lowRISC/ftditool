@@ -8,11 +8,10 @@
 #include <optional>
 #include <span>
 #include <vector>
-#include <array>
+#include <algorithm>
 #include <iostream>
 #include <print>
 #include "log.hh"
-#include "ftdi.hh"
 #include "spi_host.hh"
 
 namespace ftdi {
@@ -36,22 +35,41 @@ embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payl
 
 embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
   std::vector<uint8_t> payload;
-  uint8_t single_bytes             = 0;
-  uint32_t multi_bytes             = 0;
-  uint32_t multi_bytes_read        = 0;
+  uint8_t single_bytes_wr          = 0;
+  uint32_t multi_bytes_wr          = 0;
+  uint32_t multi_bytes_rd          = 0;
   embeddedpp::SpiIoMode multi_mode = embeddedpp::SpiIoMode::Single;
+  std::span<uint8_t> rd_buffer;
+
+  // The FT4222 API supports at most 2 modes per transaction, this means that the transfer mode
+  // bellow are supported:
+  // * 111: Single for cmd, addr and data. 112: Single for cmd and addr, but dual for data.
+  // * 122: Single for cmd, but dual for addr and data.
+  // * 114: Single for cmd and addr, but quad for data.
+  // * 144: Single for cmd, but quad for addr and data.
   for (auto transfer : transfers) {
     payload.insert(payload.end(), transfer.data.begin(), transfer.data.end());
     if (transfer.mode == embeddedpp::SpiIoMode::Single) {
-      single_bytes++;
+      if (transfer.direction == embeddedpp::SpiDirection::Write) {
+        single_bytes_wr += transfer.data.size();
+      }
     } else {
-      multi_bytes++;
-      multi_bytes_read += transfer.data.size();
       if (multi_mode != embeddedpp::SpiIoMode::Single && multi_mode != transfer.mode) {
-        // Only one multimode supported
-        return embeddedpp::Code::SpiMultiModeError;
+        // Max of two modes supported per transaction.
+        return embeddedpp::Code::InvalidArgument;
       }
       multi_mode = transfer.mode;
+      if (transfer.direction == embeddedpp::SpiDirection::Write) {
+        multi_bytes_wr += transfer.data.size();
+        continue;
+      }
+
+      if (multi_bytes_rd > 0) {
+        // This implementation only supports one read per transaction.
+        return embeddedpp::Code::InvalidArgument;
+      }
+      multi_bytes_rd = transfer.data.size();
+      rd_buffer      = transfer.data.subspan(0);
     }
   }
 
@@ -75,8 +93,9 @@ embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
     return embeddedpp::Code::Generic;
   }
 
-  status = FT4222_SPIMaster_MultiReadWrite(handle, payload.data(), payload.data(), single_bytes,
-                                           multi_bytes, multi_bytes_read, &received);
+  status =
+      FT4222_SPIMaster_MultiReadWrite(handle, rd_buffer.data(), payload.data(), single_bytes_wr,
+                                      multi_bytes_wr, multi_bytes_rd, &received);
   if (FT4222_OK != status) {
     std::cerr << std::format("MultiReadWrite:{}\n", status);
     return embeddedpp::Code::Generic;

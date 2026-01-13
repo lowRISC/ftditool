@@ -38,6 +38,7 @@ enum class Code {
   Ok,
   SpiMultiModeError,  // Dual and Quad modes not suported in the same transaction.
   Generic,
+  InvalidArgument,
 };
 
 template <typename T>
