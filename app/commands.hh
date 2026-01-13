@@ -5,6 +5,7 @@
 #pragma once
 
 #include "flash/flash.hh"
+#include <print>
 
 namespace commands {
 
@@ -55,20 +56,11 @@ struct ReadPage : public Commands<T> {
 
   int run() override {
     if (auto page = this->flash.single_read_page(addr)) {
-      std::println("{:#x} : {}", addr, *page);
+      std::println("Single read {:#x} : {}", addr, *page);
     } else {
       std::println("page failed");
     }
 
-    if (!this->flash.enable_quad(addr)) {
-      std::println("enable quad failed");
-    }
-
-    if (auto page = this->flash.quad_read_page(addr)) {
-      std::println("{:#x} : {}", addr, *page);
-      return 0;
-    }
-    std::println("quad read failed");
     return 1;
   }
 };
@@ -83,17 +75,48 @@ struct TestPage : public Commands<T> {
       std::println("Erase failed");
       return 0;
     }
-    std::vector<uint8_t> data(256, 0xaa);
+    std::vector<uint8_t> data(256, 0x5a);
     if (!this->flash.single_page_program(addr, std::span<uint8_t, 256>(data))) {
       std::println("Program failed");
       return 0;
     }
 
     if (auto page = this->flash.single_read_page(addr)) {
-      std::println("{:#x} : {}", addr, *page);
+      std::println("single read {:#x} : {}", addr, *page);
       return 0;
     }
     std::println("page failed");
+    return 1;
+  }
+};
+
+template <typename T>
+struct TestPageQuad : public Commands<T> {
+  std::size_t addr;
+  TestPageQuad(flash::Generic<T> f, std::size_t addr = 0) : Commands<T>(f), addr(addr) {}
+
+  int run() override {
+    if (!this->flash.reset() || !this->flash.erase(addr)) {
+      std::println("Erase failed");
+      return 0;
+    }
+
+    if (!this->flash.enable_quad(addr)) {
+      std::println("enable quad failed");
+    }
+
+    std::vector<uint8_t> data(256, 0xa5);
+    if (!this->flash.quad_page_program(addr, std::span<uint8_t, 256>(data))) {
+      std::println("Program failed");
+      return 0;
+    }
+
+    if (auto page = this->flash.template quad_read_page(addr)) {
+      std::println("Quald read {:#x}: {}", addr, *page);
+      return 0;
+    }
+
+    std::println("quad read failed");
     return 1;
   }
 };

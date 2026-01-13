@@ -105,11 +105,19 @@ int main(int argc, char* argv[]) {
 
   auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back");
   test_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
+  test_page_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*test_page_cmd);
   commands["test-page"] = [&]() -> int {
     auto addr = test_page_cmd->get<std::size_t>("--addr");
+    auto quad = test_page_cmd->get<bool>("--quad");
     auto spih = handle_flash_command(test_page_cmd);
-    commands::TestPage(flash::Generic(*spih), addr).run();
+    if (quad == true) {
+      std::println("QUAD");
+      commands::TestPageQuad(flash::Generic(*spih), addr).run();
+    } else {
+      std::println("SINGLE");
+      commands::TestPage(flash::Generic(*spih), addr).run();
+    }
 
     return 0;
   };
