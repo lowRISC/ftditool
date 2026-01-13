@@ -14,6 +14,12 @@ namespace embeddedpp {
 
 using Data = std::span<uint8_t>;
 
+enum class SpiDirection {
+  Write,
+  Read,
+  Both,
+};
+
 enum class SpiIoMode {
   Single,
   Dual,
@@ -22,6 +28,7 @@ enum class SpiIoMode {
 
 struct Transfer {
   SpiIoMode mode;
+  SpiDirection direction;
   Data data;
 };
 
@@ -35,7 +42,7 @@ enum class Code {
 
 template <typename T>
 using Result = std::variant<T, Code>;
-using Status = Result<std::monostate>;
+using Status = Result<int>;
 
 /**
  * @brief Returns whether the given Result contains an error.
@@ -157,11 +164,16 @@ std::optional<T> to_optional(Result<T> res) {
  */
 #define TRY_OPT(expr_)                                                                             \
   ({                                                                                               \
-    auto val = (expr_);                                                                            \
+    auto val         = (expr_);                                                                    \
+    using ReturnType = std::variant_alternative_t<0, decltype(val)>;                               \
+    ReturnType result; /* Declare a variable to hold the final result */                           \
     if (is_error(val)) {                                                                           \
-      return std::nullopt;                                                                         \
+      if (std::get<embeddedpp::Code>(val) != embeddedpp::Code::Ok) {                               \
+        return std::nullopt;                                                                       \
+      }                                                                                            \
+    } else {                                                                                       \
+      result = unwrap(val);                                                                        \
     }                                                                                              \
-    unwrap(val);                                                                                   \
+    result;                                                                                        \
   })
-
 }  // namespace embeddedpp
