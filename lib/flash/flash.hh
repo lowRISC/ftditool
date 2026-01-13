@@ -48,7 +48,8 @@ enum Opcode : uint8_t {
   Exit4bAddr      = 0xe9,
 };
 
-using Page = std::array<uint8_t, 256>;
+using Page   = std::array<uint8_t, 256>;
+using Sector = std::array<uint8_t, 4096>;
 
 enum class Status1 : uint8_t {
   Busy        = 0x01 << 0,  // Bit 0
@@ -76,10 +77,8 @@ class Generic {
   }
 
   Option<Sfdp> sfdp() {
-    std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {
-        Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00,
-    };
-    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
+    std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00};
+    std::span<uint8_t> ret                    = TRY_OPT(spih.transfer(cmd));
     return Sfdp::try_from(ret.subspan(5));
   }
 
@@ -93,15 +92,14 @@ class Generic {
 
     auto ret = TRY_OPT(spih.transfer(cmd));
 
-    Page page;
+    Page page = {0x00};
     std::copy(ret.begin() + 4, ret.end(), page.begin());
     return Option{page};
   }
 
-  Option<Page> quad_read_page(uint32_t address) {
-    std::array<uint8_t, 1> cmd = {
-        Opcode::ReadQuad,
-    };
+  template <std::size_t N>
+  Option<std::array<uint8_t, N>> quad_read(uint32_t address) {
+    std::array<uint8_t, 1> cmd = {Opcode::ReadQuad};
 
     std::array<uint8_t, 3> addr = {
         static_cast<uint8_t>(address >> 16),
@@ -109,16 +107,43 @@ class Generic {
         static_cast<uint8_t>(address >> 0),
     };
 
-    Page page;
-    std::array<embeddedpp::Transfer, 3> transfers = {
-        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, cmd},
-        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, addr},
-        embeddedpp::Transfer{embeddedpp::SpiIoMode::Quad, page},
+    std::array<uint8_t, 1> dummy    = {0x00};
+    std::array<uint8_t, N> ret_data = {0x00};
+
+    std::array<embeddedpp::Transfer, 4> transfers = {
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, embeddedpp::SpiDirection::Write, cmd},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, embeddedpp::SpiDirection::Write, addr},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, embeddedpp::SpiDirection::Write, dummy},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Quad, embeddedpp::SpiDirection::Read, ret_data},
     };
 
     TRY_OPT(spih.transaction(transfers));
+    return Option{ret_data};
+  }
 
-    return Option{page};
+  Option<Page> quad_read_page(uint32_t address) { return quad_read<256>(address); }
+
+  Option<Sector> quad_read_sector(uint32_t address) { return quad_read<4096>(address); }
+
+  Option<bool>
+  quad_page_program(uint32_t address, std::span<uint8_t, 256> data, uint8_t upcode = 0x32) {
+    write_enable();
+    std::array<uint8_t, 1> cmd = {upcode};
+
+    std::array<uint8_t, 3> addr = {
+        static_cast<uint8_t>(address >> 16),
+        static_cast<uint8_t>(address >> 8),
+        static_cast<uint8_t>(address >> 0),
+    };
+
+    std::array<embeddedpp::Transfer, 3> transfers = {
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, embeddedpp::SpiDirection::Write, cmd},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Single, embeddedpp::SpiDirection::Write, addr},
+        embeddedpp::Transfer{embeddedpp::SpiIoMode::Quad, embeddedpp::SpiDirection::Write, data},
+    };
+
+    TRY_OPT(spih.transaction(transfers));
+    return true;
   }
 
   Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
@@ -137,11 +162,11 @@ class Generic {
 
   Option<bool> enable_quad(bool enable) {
     if (!this->sfdp_.is_valid()) {
-      if (auto _sfdp = this->sfdp()) {
-        this->sfdp_ = *_sfdp;
-      } else {
+      auto _sfdp = this->sfdp();
+      if (!_sfdp) {
         return std::nullopt;
       }
+      this->sfdp_ = *_sfdp;
     }
     if (sfdp_.get_quad_enable_mechanism() != 3) {
       // TODO:
@@ -152,6 +177,7 @@ class Generic {
     if (!status) {
       return std::nullopt;
     }
+
     auto val = *status & ~(1 << 7);
     val      = val | (1 << 7);
     write_status(val, Opcode::WriteStatus2);
@@ -199,7 +225,8 @@ class Generic {
     };
 
     auto slice = std::span<uint8_t>(cmd).last<256>();
-    std::copy(data.begin(), data.end(), slice.begin());
+
+    std::ranges::copy(data, slice.begin());
     TRY_OPT(spih.transfer(cmd));
     wait_not_busy();
     return write_enable(false);
