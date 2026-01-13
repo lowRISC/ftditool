@@ -18,6 +18,8 @@ namespace ftdi {
 embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
   uint16_t received = 0;
 
+  FT4222_SPIMaster_SetLines(handle, SPI_IO_SINGLE);
+
   FT4222_STATUS status;
   status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(), payload.size(),
                                             &received, true);
@@ -30,6 +32,7 @@ embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payl
     std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
     return embeddedpp::Code::Generic;
   }
+
   return payload;
 }
 

@@ -142,13 +142,8 @@ class Generic {
     };
 
     TRY_OPT(spih.transaction(transfers));
+    wait_not_busy();
     return true;
-  }
-
-  Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
-    std::array<uint8_t, 2> cmd = {code};
-    auto ret                   = TRY_OPT(spih.transfer(cmd));
-    return ret[1];
   }
 
   Option<bool> write_status(uint8_t val, Opcode code = Opcode::WriteStatus1) {
@@ -166,19 +161,30 @@ class Generic {
       }
       this->sfdp_ = *_sfdp;
     }
-    if (sfdp_.get_quad_enable_mechanism() != 3) {
-      // TODO:
-      return std::nullopt;
-    }
 
-    auto status = read_status(Opcode::ReadStatus2);
-    if (!status) {
-      return std::nullopt;
-    }
+    auto single_bit_method = [&](Opcode rd_op, Opcode wr_op, size_t bit) -> Option<bool> {
+      auto status = read_status(rd_op);
+      if (!status) {
+        return std::nullopt;
+      }
 
-    auto val = *status & ~(1 << 7);
-    val      = val | (1 << 7);
-    write_status(val, Opcode::WriteStatus2);
+      auto val = *status & ~(1 << bit);
+      val      = val | (1 << bit);
+      write_status(val, wr_op);
+      return true;
+    };
+
+    switch (sfdp_.get_quad_enable_mechanism()) {
+      case 2:
+        return single_bit_method(Opcode::ReadStatus1, Opcode::WriteStatus1, 6);
+      case 3:
+        return single_bit_method(Opcode::ReadStatus2, Opcode::WriteStatus2, 7);
+      case 6:
+        return single_bit_method(Opcode::ReadStatus2, Opcode::WriteStatus2, 1);
+      default:
+        return std::nullopt;
+    };
+
     return true;
   }
 
@@ -207,6 +213,13 @@ class Generic {
     std::array<uint8_t, 1> cmd = {enable ? Opcode::WriteEnable : Opcode::WriteDisable};
     TRY_OPT(spih.transfer(cmd));
     return true;
+  }
+
+  Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
+    std::array<uint8_t, 2> cmd = {code};
+
+    auto ret = TRY_OPT(spih.transfer(cmd));
+    return ret[1];
   }
 
   Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
