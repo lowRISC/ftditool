@@ -118,14 +118,19 @@ int main(int argc, char* argv[]) {
 
   auto load_file_cmd =
       new_flash_command("load-file", "Write the content of a file to the address.");
-  load_file_cmd->add_argument("-f").help("The file path.");
-  load_file_cmd->add_argument("--addr").help("The address to be loaded").scan<'x', std::size_t>();
+  load_file_cmd->add_argument("filename").help("The file path.");
+  load_file_cmd->add_argument("--addr")
+      .help("The address to be loaded")
+      .default_value(std::size_t{0})
+      .scan<'x', std::size_t>();
+  load_file_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*load_file_cmd);
   commands["load-file"] = [&]() -> int {
+    auto filename = load_file_cmd->get<std::string>("filename");
     auto addr     = load_file_cmd->get<std::size_t>("--addr");
-    auto filename = load_file_cmd->get<std::string>("-f");
-    auto spih     = handle_flash_command(load_file_cmd);
-    commands::LoadFile(flash::Generic(*spih), filename, addr).run();
+    auto quad     = load_file_cmd->get<bool>("--quad");
+    auto spih = handle_flash_command(load_file_cmd);
+    commands::LoadFile(flash::Generic(*spih), filename, addr, quad).run();
 
     return 0;
   };
