@@ -11,6 +11,13 @@
 
 namespace flash {
 
+enum : std::size_t {
+  PageSize    = 256,
+  SectorSize  = 1024 * 4,
+  BlockSize   = 1024 * 32,
+  Block64Size = 1024 * 64,
+};
+
 template <typename T>
 using Option = std::optional<T>;
 
@@ -48,8 +55,8 @@ enum Opcode : uint8_t {
   Exit4bAddr      = 0xe9,
 };
 
-using Page   = std::array<uint8_t, 256>;
-using Sector = std::array<uint8_t, 4096>;
+using Page   = std::array<uint8_t, PageSize>;
+using Sector = std::array<uint8_t, SectorSize>;
 
 enum class Status1 : uint8_t {
   Busy        = 0x01 << 0,  // Bit 0
