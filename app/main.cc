@@ -111,13 +111,7 @@ int main(int argc, char* argv[]) {
     auto addr = test_page_cmd->get<std::size_t>("--addr");
     auto quad = test_page_cmd->get<bool>("--quad");
     auto spih = handle_flash_command(test_page_cmd);
-    if (quad == true) {
-      std::println("QUAD");
-      commands::TestPageQuad(flash::Generic(*spih), addr).run();
-    } else {
-      std::println("SINGLE");
-      commands::TestPage(flash::Generic(*spih), addr).run();
-    }
+    commands::TestPage(flash::Generic(*spih), addr, quad).run();
 
     return 0;
   };

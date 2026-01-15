@@ -68,32 +68,9 @@ struct ReadPage : public Commands<T> {
 template <typename T>
 struct TestPage : public Commands<T> {
   std::size_t addr;
-  TestPage(flash::Generic<T> f, std::size_t addr = 0) : Commands<T>(f), addr(addr) {}
-
-  int run() override {
-    if (!this->flash.reset() || !this->flash.erase(addr)) {
-      std::println("Erase failed");
-      return 0;
-    }
-    std::vector<uint8_t> data(256, 0x5a);
-    if (!this->flash.single_page_program(addr, std::span<uint8_t, 256>(data))) {
-      std::println("Program failed");
-      return 0;
-    }
-
-    if (auto page = this->flash.single_read_page(addr)) {
-      std::println("single read {:#x} : {}", addr, *page);
-      return 0;
-    }
-    std::println("page failed");
-    return 1;
-  }
-};
-
-template <typename T>
-struct TestPageQuad : public Commands<T> {
-  std::size_t addr;
-  TestPageQuad(flash::Generic<T> f, std::size_t addr = 0) : Commands<T>(f), addr(addr) {}
+  bool quad;
+  TestPage(flash::Generic<T> f, std::size_t addr = 0, bool quad = false)
+      : Commands<T>(f), addr(addr), quad(quad) {}
 
   int run() override {
     if (!this->flash.reset() || !this->flash.erase(addr)) {
@@ -101,22 +78,31 @@ struct TestPageQuad : public Commands<T> {
       return 0;
     }
 
-    if (!this->flash.enable_quad(addr)) {
+    if (quad && !this->flash.enable_quad(addr)) {
       std::println("enable quad failed");
     }
 
-    std::vector<uint8_t> data(256, 0xa5);
-    if (!this->flash.quad_page_program(addr, std::span<uint8_t, 256>(data))) {
+    std::vector<uint8_t> data(256, 0x5a);
+    if (quad && !this->flash.quad_page_program(addr, std::span<uint8_t, 256>(data))) {
+      std::println("Program failed");
+      return 0;
+    } else if (!quad && !this->flash.single_page_program(addr, std::span<uint8_t, 256>(data))) {
       std::println("Program failed");
       return 0;
     }
 
-    if (auto page = this->flash.template quad_read_page(addr)) {
-      std::println("Quald read {:#x}: {}", addr, *page);
-      return 0;
+    std::optional<flash::Page> page;
+    if (quad) {
+      page = this->flash.template quad_read_page(addr);
+    } else {
+      page = this->flash.single_read_page(addr);
     }
 
-    std::println("quad read failed");
+    if (page) {
+      std::println("page read {:#x} : {}", addr, *page);
+      return 0;
+    }
+    std::println("page failed");
     return 1;
   }
 };
