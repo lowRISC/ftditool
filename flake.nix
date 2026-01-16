@@ -18,7 +18,11 @@
     system_outputs = system: let
       pkgs = import nixpkgs {inherit system;};
       ft4222 = pkgs.callPackage ./nix/ft4222.nix {};
-      ftditool = pkgs.callPackage ./nix/ftditool.nix {inherit ft4222;};
+      picosha2 = pkgs.callPackage ./nix/picosha2.nix {};
+      ftditool = pkgs.callPackage ./nix/ftditool.nix {
+        inherit ft4222;
+        inherit picosha2;
+      };
     in {
       formatter = pkgs.alejandra;
       packages.default = ftditool;

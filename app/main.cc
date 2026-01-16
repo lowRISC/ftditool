@@ -104,7 +104,10 @@ int main(int argc, char* argv[]) {
   };
 
   auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back");
-  test_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
+  test_page_cmd->add_argument("--addr")
+      .help("The address to be loaded")
+      .default_value(std::size_t{0})
+      .scan<'x', std::size_t>();
   test_page_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*test_page_cmd);
   commands["test-page"] = [&]() -> int {
@@ -129,8 +132,30 @@ int main(int argc, char* argv[]) {
     auto filename = load_file_cmd->get<std::string>("filename");
     auto addr     = load_file_cmd->get<std::size_t>("--addr");
     auto quad     = load_file_cmd->get<bool>("--quad");
-    auto spih = handle_flash_command(load_file_cmd);
+    auto spih     = handle_flash_command(load_file_cmd);
     commands::LoadFile(flash::Generic(*spih), filename, addr, quad).run();
+
+    return 0;
+  };
+
+  auto verify_file_cmd = new_flash_command(
+      "verify-file", "Compare the hash if a file to hash of the flash content at the address.");
+  verify_file_cmd->add_argument("filename").help("The file path.");
+  verify_file_cmd->add_argument("--addr")
+      .help("The address to be loaded")
+      .default_value(std::size_t{0})
+      .scan<'x', std::size_t>();
+  verify_file_cmd->add_argument("--quad")
+      .help("Use qSPI")
+      .default_value(false)
+      .implicit_value(true);
+  program.add_subparser(*verify_file_cmd);
+  commands["verify-file"] = [&]() -> int {
+    auto filename = verify_file_cmd->get<std::string>("filename");
+    auto addr     = verify_file_cmd->get<std::size_t>("--addr");
+    auto quad     = verify_file_cmd->get<bool>("--quad");
+    auto spih     = handle_flash_command(verify_file_cmd);
+    commands::VerifyFile(flash::Generic(*spih), filename, addr, quad).run();
 
     return 0;
   };

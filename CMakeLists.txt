@@ -13,7 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(argparse QUIET)
 find_package(magic_enum QUIET)
-
+find_package(picosha2 QUIET)
 # Check if nix is not providing these dependencies.
 if (NOT argparse_FOUND)
   include(FetchContent)
@@ -28,7 +28,23 @@ if (NOT argparse_FOUND)
       GIT_REPOSITORY https://github.com/neargye/magic_enum.git
   )
   FetchContent_MakeAvailable(magic_enum)
+
+  FetchContent_Declare(
+      picosha2
+      GIT_REPOSITORY https://github.com/okdshin/PicoSHA2
+      GIT_TAG v1.0.1
+  )
+  FetchContent_MakeAvailable(picosha2)
+
+else()
+  # This is a hack becase picosha2 does not define an install phase in CMakefile.
+  add_library(picosha2 INTERFACE)
+  target_include_directories(picosha2 INTERFACE
+      ${CMAKE_PREFIX_PATH}/include
+  )
 endif()
+
+
 
 add_subdirectory(lib/embeddedpp)
 add_subdirectory(lib/ftdi)
@@ -36,6 +52,6 @@ add_subdirectory(lib/flash)
 
 add_executable(ftditool app/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")
-target_link_libraries(ftditool PRIVATE argparse::argparse flash ftdipp)
+target_link_libraries(ftditool PRIVATE picosha2 argparse::argparse flash ftdipp)
 install(TARGETS ftditool DESTINATION bin)
 

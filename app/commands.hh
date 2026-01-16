@@ -8,6 +8,7 @@
 #include <print>
 #include <iostream>
 #include <fstream>
+#include <picosha2.h>
 
 namespace commands {
 
@@ -80,7 +81,7 @@ struct TestPage : public Commands<T> {
       return 0;
     }
 
-    if (quad && !this->flash.enable_quad(addr)) {
+    if (quad && !this->flash.enable_quad(true)) {
       std::println("enable quad failed");
     }
 
@@ -110,38 +111,111 @@ struct TestPage : public Commands<T> {
 };
 
 struct ProgressBar {
-  bool finished = false;
-  int width = 100;
-  int total = 0;
+  bool finished  = false;
+  int width      = 100;
+  int total      = 0;
   float progress = 0;
   std::string label;
 
-  ProgressBar(int total, std::string label = "Progress", int width = 100): total(total), label(label), width(width), finished(false){}
+  ProgressBar(int total, int width = 100, std::string label = "Progress")
+      : total(total), label(label), width(width), finished(false) {}
   void update(int progress) {
-      if (this->total <= progress && this->finished) {
-        std::println("");
-        return;
-      }
-      this->finished = (this->total <= progress); 
-      this->progress = static_cast<float>(progress) / this->total;
-      int filled = this->width * this->progress;
+    if (this->total <= progress && this->finished) {
+      return;
+    }
+    this->finished = (this->total <= progress);
+    this->progress = static_cast<float>(progress) / this->total;
+    int filled     = this->width * this->progress;
 
-      std::print("\r\033[32m {} [", label);
-      for (int i = 0; i < width; ++i) {
-          std::print("{}", i < filled ? "■" : " ");
-      }
-      std::cout << "] " << (int)(this->progress * 100) << "%\033[0m" << std::flush;
+    std::print("\r\033[32m{} [", label);
+    for (int i = 0; i < width; ++i) {
+      std::print("{}", i < filled ? "■" : " ");
+    }
+    std::cout << "] " << (int)(this->progress * 100) << "%\033[0m " << std::flush;
+    if (this->finished) {
+      std::println("");
+    }
   }
+};
 
+template <typename T>
+struct VerifyFile : public Commands<T> {
+  std::size_t addr;
+  std::string& filename;
+  bool quad;
+  VerifyFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool quad = false)
+      : Commands<T>(f), filename(filename), addr(addr), quad(quad) {}
+
+  int run() override {
+    std::ifstream file(filename, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+      std::println("Could not open the file {}!", filename);
+      return 0;
+    }
+
+    std::streamsize file_size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    if (file_size == 0) {
+      std::println("File is empty");
+      return 0;
+    }
+
+    std::vector<uint8_t> file_hash(picosha2::k_digest_size, 0xdd);
+    picosha2::hash256(file, file_hash.begin(), file_hash.end());
+
+    this->flash.reset();
+    if (quad && !this->flash.enable_quad(true)) {
+      std::println("enable quad failed");
+      return 0;
+    }
+
+    picosha2::hash256_one_by_one flash_hasher;
+    auto progress_bar = ProgressBar(file_size, 50, "Verifying");
+    size_t remainder  = file_size;
+
+    while (remainder > 0) {
+      std::optional<flash::Page> page;
+      if (quad) {
+        page = this->flash.template quad_read_page(addr);
+      } else {
+        page = this->flash.single_read_page(addr);
+      }
+
+      if (!page) {
+        std::println("Program page {:#x} failed.", addr);
+        return 0;
+      }
+
+      uint32_t chunck = std::min(remainder, std::size_t{flash::PageSize});
+      std::span<uint8_t> data(*page);
+      if (chunck < data.size()) {
+        data = data.subspan(0, chunck);
+      }
+      flash_hasher.process(data.begin(), data.end());
+
+      addr += chunck;
+      remainder -= chunck;
+      progress_bar.update(file_size - remainder);
+    }
+
+    flash_hasher.finish();
+    std::vector<uint8_t> flash_hash(picosha2::k_digest_size, 0xee);
+    flash_hasher.get_hash_bytes(flash_hash.begin(), flash_hash.end());
+    if (file_hash != flash_hash) {
+      std::println("Expected: {}\nbut got:    {}", file_hash, flash_hash);
+    }
+
+    return 1;
+  }
 };
 
 template <typename T>
 struct LoadFile : public Commands<T> {
-  std::size_t addr;
+  std::size_t start_addr;
   std::string& filename;
   bool quad;
   LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool quad = false)
-      : Commands<T>(f), filename(filename), addr(addr), quad(quad) {}
+      : Commands<T>(f), filename(filename), start_addr(addr), quad(quad) {}
 
   int run() override {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -164,15 +238,16 @@ struct LoadFile : public Commands<T> {
     }
 
     this->flash.reset();
-    if (quad && !this->flash.enable_quad(addr)) {
+    if (quad && !this->flash.enable_quad(true)) {
       std::println("enable quad failed");
       return 0;
     }
 
     std::span<uint8_t> data(buffer);
-    auto progress_bar = ProgressBar(buffer.size(), " ", 50);
+    auto progress_bar = ProgressBar(buffer.size(), 50, "Loading");
+    size_t addr       = start_addr;
     while (data.size() > 0) {
-      if (addr % flash::SectorSize && !this->flash.erase(addr)) {
+      if ((addr % flash::SectorSize) == 0 && !this->flash.erase(addr)) {
         std::println("Failed to erase block {:#x}", addr);
         return 0;
       }
@@ -194,8 +269,8 @@ struct LoadFile : public Commands<T> {
       progress_bar.update(buffer.size() - data.size());
     }
 
-    std::println("Finished!");
-    return 1;
+    return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
   }
 };
+
 }  // namespace commands
