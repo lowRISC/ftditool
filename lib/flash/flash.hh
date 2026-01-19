@@ -77,7 +77,8 @@ class Generic {
 
   Option<Jedec> jedec() {
     std::array<uint8_t, 1 + sizeof(Jedec)> cmd = {Opcode::ReadJedec};
-    std::span<uint8_t> ret                     = TRY_OPT(spih.transfer(cmd));
+
+    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
     return Jedec::from(ret.last<sizeof(Jedec)>());
   }
 
