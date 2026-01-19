@@ -42,9 +42,9 @@ struct [[gnu::packed]] SfdpHeader {
   }
 
   uint32_t get_signature() const {
-    return (signature[0] << 24 | signature[1] << 16 | signature[2] << 8 | signature[3] << 0);
+    return (signature[3] << 24 | signature[2] << 16 | signature[1] << 8 | signature[0] << 0);
   }
-  bool is_valid() { return get_signature() == 0x53464450; }
+  bool is_valid() { return get_signature() == 0x50444653; }
 };
 
 struct [[gnu::packed]] ParameterHeader {
