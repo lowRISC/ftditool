@@ -218,6 +218,12 @@ struct LoadFile : public Commands<T> {
       : Commands<T>(f), filename(filename), start_addr(addr), quad(quad) {}
 
   int run() override {
+    if ((this->start_addr % flash::SectorSize) != 0) {
+      // TODO: Support Unaligned addresses.
+      std::println("Only {} aligned addresses are supported!", size_t{flash::SectorSize});
+      return 0;
+    }
+
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
       std::println("Could not open the file {}!", filename);
