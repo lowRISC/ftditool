@@ -21,9 +21,10 @@ using Result = std::optional<std::span<uint8_t>>;
 
 class SpiHost {
   FT_HANDLE handle;
+  bool traces = false;
 
  public:
-  explicit SpiHost(FT_HANDLE handle) noexcept : handle(handle) {}
+  explicit SpiHost(FT_HANDLE handle) noexcept : handle(handle), traces(false) {}
   ~SpiHost() { FT_Close(handle); }
 
   embeddedpp::Result<std::span<uint8_t>> transfer(std::span<uint8_t> payload);
@@ -34,6 +35,16 @@ class SpiHost {
 
   Result read(uint32_t size, bool deassert_cs = true);
 
+  void with_traces(bool enable) { traces = enable; };
+
   static std::optional<SpiHost> from_device_info(DeviceInfo& device);
+
+ private:
+  template <typename... Args>
+  void log(std::format_string<Args...> fmt, Args&&... args) {
+    if (this->traces) {
+      std::println(fmt, std::forward<Args>(args)...);
+    }
+  }
 };
 }  // namespace ftdi

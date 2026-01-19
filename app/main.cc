@@ -39,6 +39,10 @@ new_flash_command(const std::string& name, const std::string& desc) {
   auto cmd = std::make_unique<argparse::ArgumentParser>(name);
   cmd->add_description(desc);
   cmd->add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
+  cmd->add_argument("--traces", "-t")
+      .help("Enable ftdi traces")
+      .default_value(false)
+      .implicit_value(true);
   cmd->add_argument("--ftdi")
       .default_value(std::string("FT4222"))
       .help("Filter ftdi chips connected to USB");
@@ -48,6 +52,7 @@ new_flash_command(const std::string& name, const std::string& desc) {
 static std::optional<ftdi::SpiHost>
 handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
   auto ftdi     = cmd->get<std::string>("--ftdi");
+  auto traces   = cmd->get<bool>("--traces");
   auto devices  = scan();
   auto filtered = ftdi::DeviceInfo::filter_by_description(devices, ftdi);
   if (filtered.empty()) {
@@ -55,6 +60,7 @@ handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
     exit(0);
   }
   if (auto opt = ftdi::SpiHost::from_device_info(filtered[0])) {
+    opt->with_traces(traces);
     return opt;
   }
   std::println("Can't open spi.");

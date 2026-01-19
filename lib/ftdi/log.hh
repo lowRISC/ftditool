@@ -14,7 +14,7 @@ struct std::formatter<std::array<uint8_t, N>> : std::formatter<std::string_view>
 
   auto format(const std::array<uint8_t, N>& arr, format_context& ctx) const {
     auto out = ctx.out();
-    out      = std::format_to(out, "Array<uint8_t, {} >: {{", N);
+    out      = std::format_to(out, "Array<{}>: {{", N);
 
     for (std::size_t i = 0; i < N; ++i) {
       out = std::format_to(out, "{:02x}", arr[i]);
@@ -32,7 +32,7 @@ struct std::formatter<std::span<uint8_t, N>> : std::formatter<std::string_view> 
 
   auto format(const std::span<uint8_t, N>& arr, format_context& ctx) const {
     auto out = ctx.out();
-    out      = std::format_to(out, "Span<uint8_t, {} >: {{", N);
+    out      = std::format_to(out, "Span<{}>: {{", N);
 
     for (std::size_t i = 0; i < N; ++i) {
       out = std::format_to(out, "{:02x}", arr[i]);
@@ -50,7 +50,7 @@ struct std::formatter<std::span<uint8_t>> : std::formatter<std::string_view> {
 
   auto format(const std::span<uint8_t>& arr, format_context& ctx) const {
     auto out = ctx.out();
-    out      = std::format_to(out, "Span<uint8_t, {}> = {{", arr.size());
+    out      = std::format_to(out, "Span<{}> = {{", arr.size());
 
     for (std::size_t i = 0; i < arr.size(); ++i) {
       out = std::format_to(out, "{:02x}", arr[i]);
@@ -68,7 +68,7 @@ struct std::formatter<std::vector<uint8_t>> : std::formatter<std::string_view> {
 
   auto format(const std::vector<uint8_t>& arr, format_context& ctx) const {
     auto out = ctx.out();
-    out      = std::format_to(out, "Vector<uint8_t, {}> = {{", arr.size());
+    out      = std::format_to(out, "Vector<{}> = {{", arr.size());
 
     for (std::size_t i = 0; i < arr.size(); ++i) {
       out = std::format_to(out, "{:02x}", arr[i]);

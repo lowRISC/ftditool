@@ -17,6 +17,7 @@
 namespace ftdi {
 embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
   uint16_t received = 0;
+  log("SPI -->> {}", payload);
 
   FT4222_SPIMaster_SetLines(handle, SPI_IO_SINGLE);
 
@@ -32,7 +33,7 @@ embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payl
     std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
     return embeddedpp::Code::Generic;
   }
-
+  log("SPI <<-- {}", payload);
   return payload;
 }
 
@@ -96,6 +97,7 @@ embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
     return embeddedpp::Code::Generic;
   }
 
+  log("SPI -->> {}", payload);
   status =
       FT4222_SPIMaster_MultiReadWrite(handle, rd_buffer.data(), payload.data(), single_bytes_wr,
                                       multi_bytes_wr, multi_bytes_rd, &received);
@@ -103,6 +105,7 @@ embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
     std::cerr << std::format("MultiReadWrite:{}\n", status);
     return embeddedpp::Code::Generic;
   }
+  log("SPI <<-- {}", rd_buffer);
 
   return embeddedpp::Code::Ok;
 };
