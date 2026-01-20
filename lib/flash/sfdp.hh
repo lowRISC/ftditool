@@ -53,7 +53,7 @@ struct [[gnu::packed]] ParameterHeader {
   uint8_t major;
   uint8_t length;
   uint8_t table_offset[3];
-  uint8_t reserved;
+  uint8_t id_msb;
 
   static ParameterHeader from(std::span<const uint8_t> buffer) {
     ParameterHeader param;
@@ -130,7 +130,8 @@ struct std::formatter<flash::ParameterHeader> {
     return std::format_to(ctx.out(),
                           "ParamHeader: {{\n\tid: {:#x}\n\tminor: {}\n\tmajor: "
                           "{}\n\tlength: {}\n\ttable_offset: {:#x}}}\n",
-                          data.id, data.minor, data.major, data.length, data.get_address());
+                          data.id_msb << 8 | data.id, data.minor, data.major, data.length,
+                          data.get_address());
   }
 };
 
