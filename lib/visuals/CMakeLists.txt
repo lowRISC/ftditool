@@ -10,6 +10,7 @@ target_sources(visuals
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES
             progressbar.hh
+            throughput.hh
 )
 
 target_include_directories(visuals
