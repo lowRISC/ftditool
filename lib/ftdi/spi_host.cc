@@ -157,7 +157,7 @@ std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
   FT4222_STATUS status;
   status = FT4222_SPIMaster_Init(handle,
                                  SPI_IO_SINGLE,     // 1 channel
-                                 CLK_DIV_128,       // 60 MHz / 32 == 1.875 MHz
+                                 CLK_DIV_4,         // 60 MHz / 4 == 15 MHz
                                  CLK_IDLE_LOW,      // clock idles at logic 0
                                  CLK_LEADING,       // data captured on rising edge
                                  SLAVE_SELECT(0));  // Use SS0O for cs
@@ -166,7 +166,7 @@ std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
     return std::nullopt;
   }
 
-  status = FT4222_SPI_SetDrivingStrength(handle, DS_4MA, DS_4MA, DS_4MA);
+  status = FT4222_SPI_SetDrivingStrength(handle, DS_8MA, DS_8MA, DS_8MA);
   if (FT4222_OK != status) {
     std::cerr << std::format("SetDrivingStrenght:{}\n", status);
     return std::nullopt;
