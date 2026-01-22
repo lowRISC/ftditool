@@ -46,6 +46,10 @@ new_flash_command(const std::string& name, const std::string& desc) {
   cmd->add_argument("--ftdi")
       .default_value(std::string("FT4222"))
       .help("Filter ftdi chips connected to USB");
+  cmd->add_argument("--clock")
+      .default_value(std::size_t{15000000})
+      .help("The spi clock speed in Hz.")
+      .scan<'d', std::size_t>();
   return cmd;
 }
 
@@ -53,6 +57,7 @@ static std::optional<ftdi::SpiHost>
 handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
   auto ftdi     = cmd->get<std::string>("--ftdi");
   auto traces   = cmd->get<bool>("--traces");
+  auto clock    = cmd->get<size_t>("--clock");
   auto devices  = scan();
   auto filtered = ftdi::DeviceInfo::filter_by_description(devices, ftdi);
   if (filtered.empty()) {
@@ -61,6 +66,7 @@ handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
   }
   if (auto opt = ftdi::SpiHost::from_device_info(filtered[0])) {
     opt->with_traces(traces);
+    opt->set_clock(clock);
     return opt;
   }
   std::println("Can't open spi.");
