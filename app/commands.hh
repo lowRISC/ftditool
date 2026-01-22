@@ -6,6 +6,7 @@
 
 #include "flash/flash.hh"
 #include "visuals/progressbar.hh"
+#include "visuals/throughput.hh"
 #include <fstream>
 #include <iostream>
 #include <picosha2.h>
@@ -143,7 +144,7 @@ struct VerifyFile : public Commands<T> {
     }
 
     picosha2::hash256_one_by_one flash_hasher;
-    auto progress_bar = ProgressBar(file_size, 50, "Verifying");
+    auto progress_bar = ProgressBar(file_size, 50, "Verifying").with_throughput();
     size_t remainder  = file_size;
 
     while (remainder > 0) {
@@ -223,7 +224,7 @@ struct LoadFile : public Commands<T> {
     }
 
     std::span<uint8_t> data(buffer);
-    auto progress_bar = ProgressBar(buffer.size(), 50, "Loading");
+    auto progress_bar = ProgressBar(buffer.size(), 50, "Loading").with_throughput();
     size_t addr       = start_addr;
     while (data.size() > 0) {
       if ((addr % flash::SectorSize) == 0 && !this->flash.erase(addr)) {
