@@ -49,9 +49,10 @@ endif()
 add_subdirectory(lib/embeddedpp)
 add_subdirectory(lib/ftdi)
 add_subdirectory(lib/flash)
+add_subdirectory(lib/visuals)
 
 add_executable(ftditool app/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")
-target_link_libraries(ftditool PRIVATE picosha2 argparse::argparse flash ftdipp)
+target_link_libraries(ftditool PRIVATE visuals picosha2 argparse::argparse flash ftdipp)
 install(TARGETS ftditool DESTINATION bin)
 
