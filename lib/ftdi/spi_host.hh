@@ -35,6 +35,8 @@ class SpiHost {
 
   Result read(uint32_t size, bool deassert_cs = true);
 
+  bool set_clock(size_t clock);
+
   void with_traces(bool enable) { traces = enable; };
 
   static std::optional<SpiHost> from_device_info(DeviceInfo& device);

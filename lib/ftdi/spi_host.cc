@@ -146,6 +146,38 @@ Result SpiHost::read(uint32_t size, bool deassert_cs) {
   return Result{buffer};
 }
 
+bool SpiHost::set_clock(size_t clock) {
+  const std::array<FT4222_SPIClock, 9> clocks{
+      CLK_DIV_2,    // 1/2   System Clock
+      CLK_DIV_4,    // 1/4   System Clock
+      CLK_DIV_8,    // 1/8   System Clock
+      CLK_DIV_16,   // 1/16  System Clock
+      CLK_DIV_32,   // 1/32  System Clock
+      CLK_DIV_64,   // 1/64  System Clock
+      CLK_DIV_128,  // 1/128 System Clock
+      CLK_DIV_256,  // 1/256 System Clock
+      CLK_DIV_512,  // 1/512 System Clock
+  };
+  FT4222_SPIClock clk_div = clocks[0];
+
+  const size_t baseClk = 60000000;
+  for (auto div : clocks) {
+    if ((baseClk >> div) <= clock) {
+      clk_div = div;
+      break;
+    }
+  }
+
+  FT4222_STATUS status;
+  status = FT4222_SPIMaster_Init(handle, SPI_IO_SINGLE, clk_div, CLK_IDLE_LOW, CLK_LEADING,
+                                 SLAVE_SELECT(0));
+  if (FT4222_OK != status) {
+    std::cerr << std::format("failed to update the clock:{}\n", status);
+    return false;
+  }
+  return true;
+}
+
 std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
   FT_HANDLE handle;
   FT_STATUS res = FT_OpenEx((PVOID)(uintptr_t)device.loc_id, FT_OPEN_BY_LOCATION, &handle);
