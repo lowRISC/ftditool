@@ -188,8 +188,10 @@ struct LoadFile : public Commands<T> {
   std::size_t start_addr;
   std::string& filename;
   bool quad;
-  LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool quad = false)
-      : Commands<T>(f), filename(filename), start_addr(addr), quad(quad) {}
+  bool bootstrap;
+  LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool bootstrap = false,
+           bool quad = false)
+      : Commands<T>(f), filename(filename), start_addr(addr), quad(quad), bootstrap(bootstrap) {}
 
   int run() override {
     if ((this->start_addr % flash::SectorSize) != 0) {
@@ -217,7 +219,9 @@ struct LoadFile : public Commands<T> {
       return 0;
     }
 
-    this->flash.reset();
+    if (!bootstrap) {
+      this->flash.reset();
+    }
     if (quad && !this->flash.enable_quad(true)) {
       std::println("enable quad failed");
       return 0;
@@ -249,7 +253,12 @@ struct LoadFile : public Commands<T> {
       progress_bar.update(buffer.size() - data.size());
     }
 
-    return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
+    if (bootstrap) {
+      this->flash.reset();
+      return 1;
+    } else {
+      return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
+    }
   }
 };
 

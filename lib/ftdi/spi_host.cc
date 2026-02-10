@@ -4,6 +4,7 @@
 
 #include "libft4222.h"
 #include "ftd2xx.h"
+#include "libmpsse_spi.h"
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -16,22 +17,33 @@
 
 namespace ftdi {
 embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
-  uint16_t received = 0;
   log("SPI -->> {}", payload);
 
-  FT4222_SPIMaster_SetLines(handle, SPI_IO_SINGLE);
+  if (this->mpsse) {
+    uint32_t received = 0;
+    FT_STATUS status =
+        SPI_ReadWrite(handle, payload.data(), payload.data(), payload.size(), &received, 0x3 << 1);
+    if (FT_OK != status) {
+      std::cerr << std::format("SPI_ReadWrite:{}\n", status);
+      return embeddedpp::Code::Generic;
+    }
 
-  FT4222_STATUS status;
-  status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(), payload.size(),
-                                            &received, true);
-  if (FT4222_OK != status) {
-    std::cerr << std::format("SingleReadWrite:{}\n", status);
-    return embeddedpp::Code::Generic;
-  }
+  } else {
+    uint16_t received = 0;
+    FT4222_SPIMaster_SetLines(handle, SPI_IO_SINGLE);
 
-  if (received < payload.size()) {
-    std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
-    return embeddedpp::Code::Generic;
+    FT4222_STATUS status;
+    status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(),
+                                              payload.size(), &received, true);
+    if (FT4222_OK != status) {
+      std::cerr << std::format("SingleReadWrite:{}\n", status);
+      return embeddedpp::Code::Generic;
+    }
+
+    if (received < payload.size()) {
+      std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
+      return embeddedpp::Code::Generic;
+    }
   }
   log("SPI <<-- {}", payload);
   return payload;
@@ -44,6 +56,11 @@ embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {
   uint32_t multi_bytes_rd          = 0;
   embeddedpp::SpiIoMode multi_mode = embeddedpp::SpiIoMode::Single;
   std::span<uint8_t> rd_buffer;
+
+  if (this->mpsse) {
+    std::cerr << std::format("MPSSE does not support quad or dual modes\n");
+    return embeddedpp::Code::SpiMultiModeError;
+  }
 
   // The FT4222 API supports at most 2 modes per transaction, this means that the transfer mode
   // bellow are supported:
@@ -160,25 +177,38 @@ bool SpiHost::set_clock(size_t clock) {
   };
   FT4222_SPIClock clk_div = clocks[0];
 
-  const size_t baseClk = 60000000;
-  for (auto div : clocks) {
-    if ((baseClk >> div) <= clock) {
-      clk_div = div;
-      break;
-    }
-  }
+  if (this->mpsse) {
+    ChannelConfig config = {.ClockRate     = (DWORD)clock,
+                            .LatencyTimer  = 2,
+                            .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3};
 
-  FT4222_STATUS status;
-  status = FT4222_SPIMaster_Init(handle, SPI_IO_SINGLE, clk_div, CLK_IDLE_LOW, CLK_LEADING,
-                                 SLAVE_SELECT(0));
-  if (FT4222_OK != status) {
-    std::cerr << std::format("failed to update the clock:{}\n", status);
-    return false;
+    FT_STATUS res = SPI_InitChannel(handle, &config);
+    if (res != FT_OK) {
+      std::cerr << std::format("failed to update the clock:{}\n", res);
+      return false;
+    }
+
+  } else {
+    const size_t baseClk = 60000000;
+    for (auto div : clocks) {
+      if ((baseClk >> div) <= clock) {
+        clk_div = div;
+        break;
+      }
+    }
+
+    FT4222_STATUS status;
+    status = FT4222_SPIMaster_Init(handle, SPI_IO_SINGLE, clk_div, CLK_IDLE_LOW, CLK_LEADING,
+                                   SLAVE_SELECT(0));
+    if (FT4222_OK != status) {
+      std::cerr << std::format("failed to update the clock:{}\n", status);
+      return false;
+    }
   }
   return true;
 }
 
-std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
+static std::optional<SpiHost> new_ft4222(DeviceInfo& device) {
   FT_HANDLE handle;
   FT_STATUS res = FT_OpenEx((PVOID)(uintptr_t)device.loc_id, FT_OPEN_BY_LOCATION, &handle);
   if (res != FT_OK) {
@@ -205,5 +235,45 @@ std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
   }
 
   return std::optional<SpiHost>{handle};
+}
+
+static std::optional<SpiHost> new_ft2232(DeviceInfo& device) {
+  FT_HANDLE handle;
+  FT_STATUS res;
+  const uint32_t channel = 0;
+  Init_libMPSSE();
+
+  std::println("Openning {}, channel {}", device.serial_number, channel);
+  res = SPI_OpenChannel(channel, &handle);
+  if (res != FT_OK) {
+    std::cerr << std::format("Open:{}\n", res);
+    return std::nullopt;
+  }
+
+  ChannelConfig config = {.ClockRate     = 1000000,  // 1MHz
+                          .LatencyTimer  = 2,
+                          .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3};
+
+  res = SPI_InitChannel(handle, &config);
+  if (res != FT_OK) {
+    std::cerr << std::format("Spi InitChannel: {}\n", res);
+    return std::nullopt;
+  }
+  return std::optional<SpiHost>{SpiHost(handle, true)};
+}
+
+std::optional<SpiHost> SpiHost::from_device_info(DeviceInfo& device) {
+  switch (device.type) {
+    case DeviceType::Ftdi_2232h:
+      return new_ft2232(device);
+    case DeviceType::Ftdi_4222h_0:
+    case DeviceType::Ftdi_4222h_1_2:
+    case DeviceType::Ftdi_4222h_3:
+      return new_ft4222(device);
+    default:
+      break;
+  }
+  std::cerr << std::format("ftdi not supported yet {}\n", device);
+  return std::nullopt;
 }
 };  // namespace ftdi

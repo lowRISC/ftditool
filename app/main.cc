@@ -31,6 +31,12 @@ static std::vector<ftdi::DeviceInfo> scan() {
     std::println("No devices found.");
     exit(0);
   }
+
+  // for (auto &device: devices) {
+  //   if (device.type == ftdi::DeviceType::Ftdi_unknown) {
+  //     std::println("Warning: device not {}");
+  //   }
+  // }
   return devices;
 }
 
@@ -61,7 +67,7 @@ handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
   auto devices  = scan();
   auto filtered = ftdi::DeviceInfo::filter_by_description(devices, ftdi);
   if (filtered.empty()) {
-    std::print("No supported ftdi found.\n");
+    std::print("No {} ftdi found.\n", ftdi);
     exit(0);
   }
   if (auto opt = ftdi::SpiHost::from_device_info(filtered[0])) {
@@ -132,7 +138,7 @@ int main(int argc, char* argv[]) {
   };
 
   auto load_file_cmd =
-      new_flash_command("load-file", "Write the content of a file to the address.");
+      new_flash_command("load-file", "Write the content of a file to the address and verify it.");
   load_file_cmd->add_argument("filename").help("The file path.");
   load_file_cmd->add_argument("--addr")
       .help("The address to be loaded")
@@ -145,7 +151,7 @@ int main(int argc, char* argv[]) {
     auto addr     = load_file_cmd->get<std::size_t>("--addr");
     auto quad     = load_file_cmd->get<bool>("--quad");
     auto spih     = handle_flash_command(load_file_cmd);
-    commands::LoadFile(flash::Generic(*spih), filename, addr, quad).run();
+    commands::LoadFile(flash::Generic(*spih), filename, addr, false, quad).run();
 
     return 0;
   };
@@ -168,6 +174,25 @@ int main(int argc, char* argv[]) {
     auto quad     = verify_file_cmd->get<bool>("--quad");
     auto spih     = handle_flash_command(verify_file_cmd);
     commands::VerifyFile(flash::Generic(*spih), filename, addr, quad).run();
+
+    return 0;
+  };
+
+  auto bootstrap_cmd = new_flash_command(
+      "bootstrap", "Write the content of a binary file to a address and reset the target");
+  bootstrap_cmd->add_argument("filename").help("The file path.");
+  bootstrap_cmd->add_argument("--addr")
+      .help("The address to be loaded")
+      .default_value(std::size_t{0})
+      .scan<'x', std::size_t>();
+  bootstrap_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
+  program.add_subparser(*bootstrap_cmd);
+  commands["bootstrap"] = [&]() -> int {
+    auto filename = bootstrap_cmd->get<std::string>("filename");
+    auto addr     = bootstrap_cmd->get<std::size_t>("--addr");
+    auto quad     = bootstrap_cmd->get<bool>("--quad");
+    auto spih     = handle_flash_command(bootstrap_cmd);
+    commands::LoadFile(flash::Generic(*spih), filename, addr, true, quad).run();
 
     return 0;
   };

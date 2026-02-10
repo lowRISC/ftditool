@@ -18,9 +18,13 @@
     system_outputs = system: let
       pkgs = import nixpkgs {inherit system;};
       ft4222 = pkgs.callPackage ./nix/ft4222.nix {};
+      ftd2xx = pkgs.callPackage ./nix/ftd2xx.nix {};
+      libmpsse = pkgs.callPackage ./nix/libmpsse.nix {};
       picosha2 = pkgs.callPackage ./nix/picosha2.nix {};
       ftditool = pkgs.callPackage ./nix/ftditool.nix {
         inherit ft4222;
+        inherit ftd2xx;
+        inherit libmpsse;
         inherit picosha2;
       };
     in {
@@ -35,8 +39,14 @@
             cmake
             gnumake
             reuse
+            ft4222
+            libmpsse
           ];
-          buildInputs = [ft4222];
+          buildInputs = [ft4222 libmpsse ftd2xx];
+          shellHook = ''
+            # Setting LD_LIBRARY_PATH for libftd2xx
+            export LD_LIBRARY_PATH="${ftd2xx}/lib:$LD_LIBRARY_PATH"
+          '';
         };
       };
     };

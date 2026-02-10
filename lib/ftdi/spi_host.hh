@@ -22,9 +22,11 @@ using Result = std::optional<std::span<uint8_t>>;
 class SpiHost {
   FT_HANDLE handle;
   bool traces = false;
+  bool mpsse  = false;
 
  public:
-  explicit SpiHost(FT_HANDLE handle) noexcept : handle(handle), traces(false) {}
+  explicit SpiHost(FT_HANDLE handle, bool mpsse = false) noexcept
+      : handle(handle), mpsse(mpsse), traces(false) {}
   ~SpiHost() { FT_Close(handle); }
 
   embeddedpp::Result<std::span<uint8_t>> transfer(std::span<uint8_t> payload);
