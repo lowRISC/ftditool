@@ -76,28 +76,31 @@ class Generic {
   Generic(T& spih) : spih(spih) {};
 
   Option<Jedec> jedec() {
-    std::array<uint8_t, 1 + sizeof(Jedec)> cmd = {Opcode::ReadJedec};
+    std::array<uint8_t, 1> cmd = {Opcode::ReadJedec};
+    std::array<uint8_t, sizeof(Jedec)> resp;
 
-    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
+    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd, resp));
     return Jedec::from(ret.last<sizeof(Jedec)>());
   }
 
   Option<Sfdp> sfdp() {
-    std::array<uint8_t, 5 + sizeof(Sfdp)> cmd = {Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00};
+    std::array<uint8_t, 5> cmd = {Opcode::ReadSfdp, 0x00, 0x00, 0x00, 0x00};
+    std::array<uint8_t, sizeof(Sfdp)> resp;
 
-    std::span<uint8_t> ret = TRY_OPT(spih.transfer(cmd));
-    return Sfdp::try_from(ret.subspan(5));
+    TRY_OPT(spih.transfer(cmd, resp));
+    return Sfdp::try_from(resp);
   }
 
   Option<Page> single_read_page(uint32_t address) {
-    std::array<uint8_t, 256 + 4> cmd = {
+    std::array<uint8_t, 4> cmd = {
         Opcode::Read,
         static_cast<uint8_t>(address >> 16),
         static_cast<uint8_t>(address >> 8),
         static_cast<uint8_t>(address >> 0),
     };
+    std::array<uint8_t, 256> resp;
 
-    auto ret = TRY_OPT(spih.transfer(cmd));
+    auto ret = TRY_OPT(spih.transfer(cmd, resp));
 
     Page page = {0x00};
     std::copy(ret.begin() + 4, ret.end(), page.begin());
@@ -157,7 +160,7 @@ class Generic {
   Option<bool> write_status(uint8_t val, Opcode code = Opcode::WriteStatus1) {
     std::array<uint8_t, 2> cmd = {code, val};
 
-    auto ret = TRY_OPT(spih.transfer(cmd));
+    auto ret = TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
     return true;
   }
 
@@ -204,7 +207,7 @@ class Generic {
         static_cast<uint8_t>(address >> 8),
         static_cast<uint8_t>(address >> 0),
     };
-    auto ret = spih.transfer(cmd);
+    auto ret = spih.transfer(cmd, std::span<uint8_t>());
     if (embeddedpp::is_error(ret)) {
       return std::nullopt;
     }
@@ -213,21 +216,21 @@ class Generic {
 
   Option<bool> reset() {
     std::array<uint8_t, 1> cmd = {Opcode::Reset};
-    TRY_OPT(spih.transfer(cmd));
+    TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
     return true;
   }
 
   Option<bool> write_enable(bool enable = true) {
     std::array<uint8_t, 1> cmd = {enable ? Opcode::WriteEnable : Opcode::WriteDisable};
-    TRY_OPT(spih.transfer(cmd));
+    TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
     return true;
   }
 
   Option<uint8_t> read_status(Opcode code = Opcode::ReadStatus1) {
-    std::array<uint8_t, 2> cmd = {code};
+    std::array<uint8_t, 1> cmd = {code};
 
-    auto ret = TRY_OPT(spih.transfer(cmd));
-    return ret[1];
+    auto ret = TRY_OPT(spih.transfer(cmd, cmd));
+    return ret[0];
   }
 
   Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
@@ -242,7 +245,7 @@ class Generic {
     auto slice = std::span<uint8_t>(cmd).last<256>();
 
     std::ranges::copy(data, slice.begin());
-    TRY_OPT(spih.transfer(cmd));
+    TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
     wait_not_busy();
     return write_enable(false);
   }

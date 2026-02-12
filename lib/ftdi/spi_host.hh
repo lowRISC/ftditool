@@ -29,7 +29,8 @@ class SpiHost {
       : handle(handle), mpsse(mpsse), traces(false) {}
   ~SpiHost() { FT_Close(handle); }
 
-  embeddedpp::Result<std::span<uint8_t>> transfer(std::span<uint8_t> payload);
+  embeddedpp::Result<std::span<uint8_t>>
+  transfer(std::span<uint8_t> write, std::span<uint8_t> read);
 
   embeddedpp::Status transaction(embeddedpp::Transfers transfers);
 

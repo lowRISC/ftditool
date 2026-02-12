@@ -21,40 +21,51 @@ ChannelConfig config = {.ClockRate     = 1000000,  // 1MHz
                         .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 |
                                          SPI_CONFIG_OPTION_CS_ACTIVELOW};
 
-embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
-  log("SPI -->> {}", payload);
+embeddedpp::Result<std::span<uint8_t>>
+SpiHost::transfer(std::span<uint8_t> write, std::span<uint8_t> read) {
+  log("SPI -->> {}", write);
 
   if (this->mpsse) {
-    uint32_t received = 0;
-    FT_STATUS status =
-        SPI_ReadWrite(handle, payload.data(), payload.data(), payload.size(), &received,
-                      SPI_TRANSFER_OPTIONS_SIZE_IN_BYTES | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE |
-                          SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
+    uint32_t transfered = 0;
+    uint32_t disable_cs = read.empty() ? SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE : 0;
 
+    FT_STATUS status = SPI_Write(
+        handle, write.data(), write.size(), &transfered,
+        SPI_TRANSFER_OPTIONS_SIZE_IN_BYTES | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE | disable_cs);
     if (FT_OK != status) {
       std::cerr << std::format("SPI_ReadWrite:{}\n", status);
       return embeddedpp::Code::Generic;
     }
+    if (!read.empty()) {
+      status =
+          SPI_Read(handle, read.data(), read.size(), &transfered,
+                   SPI_TRANSFER_OPTIONS_SIZE_IN_BYTES | SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
+
+      if (FT_OK != status) {
+        std::cerr << std::format("SPI_ReadWrite:{}\n", status);
+        return embeddedpp::Code::Generic;
+      }
+    }
 
   } else {
-    uint16_t received = 0;
+    uint16_t transfered = 0;
     FT4222_SPIMaster_SetLines(handle, SPI_IO_SINGLE);
 
     FT4222_STATUS status;
-    status = FT4222_SPIMaster_SingleReadWrite(handle, payload.data(), payload.data(),
-                                              payload.size(), &received, true);
+    status = FT4222_SPIMaster_SingleWrite(handle, write.data(), write.size(), &transfered, false);
+    status = FT4222_SPIMaster_SingleRead(handle, read.data(), write.size(), &transfered, true);
     if (FT4222_OK != status) {
       std::cerr << std::format("SingleReadWrite:{}\n", status);
       return embeddedpp::Code::Generic;
     }
 
-    if (received < payload.size()) {
-      std::cerr << std::format("Wrote only {}/{}\n", received, payload.size());
+    if (transfered < read.size()) {
+      std::cerr << std::format("Wrote only {}/{}\n", transfered, read.size());
       return embeddedpp::Code::Generic;
     }
   }
-  log("SPI <<-- {}", payload);
-  return payload;
+  log("SPI <<-- {}", read);
+  return read;
 }
 
 embeddedpp::Status SpiHost::transaction(embeddedpp::Transfers transfers) {

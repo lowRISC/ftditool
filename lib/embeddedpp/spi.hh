@@ -13,7 +13,7 @@ namespace embeddedpp {
 
 template <typename T>
 concept SpiHost = requires(T device, Data data, Transfers transfers) {
-  { device.transfer(data) } -> std::same_as<Result<Data>>;
+  { device.transfer(data, data) } -> std::same_as<Result<Data>>;
 
   { device.transaction(transfers) } -> std::same_as<Status>;
 };
