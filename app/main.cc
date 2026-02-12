@@ -100,6 +100,7 @@ int main(int argc, char* argv[]) {
   commands["jedec"] = [&]() -> int {
     auto spih = handle_flash_command(jedec_cmd);
     commands::ReadJedec(flash::Generic(*spih)).run();
+    spih->close();
     return 0;
   };
 
@@ -108,6 +109,7 @@ int main(int argc, char* argv[]) {
   commands["sfdp"] = [&]() -> int {
     auto spih = handle_flash_command(sfdp_cmd);
     commands::ReadSfdp(flash::Generic(*spih)).run();
+    spih->close();
     return 0;
   };
 
@@ -118,6 +120,7 @@ int main(int argc, char* argv[]) {
     auto addr = read_page_cmd->get<std::size_t>("--addr");
     auto spih = handle_flash_command(read_page_cmd);
     commands::ReadPage(flash::Generic(*spih), addr).run();
+    spih->close();
     return 0;
   };
 
@@ -134,6 +137,7 @@ int main(int argc, char* argv[]) {
     auto spih = handle_flash_command(test_page_cmd);
     commands::TestPage(flash::Generic(*spih), addr, quad).run();
 
+    spih->close();
     return 0;
   };
 
@@ -153,6 +157,7 @@ int main(int argc, char* argv[]) {
     auto spih     = handle_flash_command(load_file_cmd);
     commands::LoadFile(flash::Generic(*spih), filename, addr, false, quad).run();
 
+    spih->close();
     return 0;
   };
 
@@ -175,6 +180,7 @@ int main(int argc, char* argv[]) {
     auto spih     = handle_flash_command(verify_file_cmd);
     commands::VerifyFile(flash::Generic(*spih), filename, addr, quad).run();
 
+    spih->close();
     return 0;
   };
 
@@ -194,6 +200,7 @@ int main(int argc, char* argv[]) {
     auto spih     = handle_flash_command(bootstrap_cmd);
     commands::LoadFile(flash::Generic(*spih), filename, addr, true, quad).run();
 
+    spih->close();
     return 0;
   };
 

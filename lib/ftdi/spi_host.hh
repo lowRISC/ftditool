@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include "libft4222.h"
+#include "libmpsse_spi.h"
 #include "ftdi.hh"
 #include "embeddedpp/helpers.hh"
 
@@ -27,7 +28,20 @@ class SpiHost {
  public:
   explicit SpiHost(FT_HANDLE handle, bool mpsse = false) noexcept
       : handle(handle), mpsse(mpsse), traces(false) {}
-  ~SpiHost() { FT_Close(handle); }
+  ~SpiHost() {
+    // std::println("destructor");
+    // TODO: fix copy elision.
+    // close();
+  }
+
+  void close() {
+    if (mpsse) {
+      SPI_CloseChannel(handle);
+      Cleanup_libMPSSE();
+    } else {
+      FT_Close(handle);
+    }
+  }
 
   embeddedpp::Result<std::span<uint8_t>>
   transfer(std::span<uint8_t> write, std::span<uint8_t> read);
