@@ -16,13 +16,21 @@
 #include "spi_host.hh"
 
 namespace ftdi {
+ChannelConfig config = {.ClockRate     = 1000000,  // 1MHz
+                        .LatencyTimer  = 2,
+                        .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3 |
+                                         SPI_CONFIG_OPTION_CS_ACTIVELOW};
+
 embeddedpp::Result<std::span<uint8_t>> SpiHost::transfer(std::span<uint8_t> payload) {
   log("SPI -->> {}", payload);
 
   if (this->mpsse) {
     uint32_t received = 0;
     FT_STATUS status =
-        SPI_ReadWrite(handle, payload.data(), payload.data(), payload.size(), &received, 0x3 << 1);
+        SPI_ReadWrite(handle, payload.data(), payload.data(), payload.size(), &received,
+                      SPI_TRANSFER_OPTIONS_SIZE_IN_BYTES | SPI_TRANSFER_OPTIONS_CHIPSELECT_ENABLE |
+                          SPI_TRANSFER_OPTIONS_CHIPSELECT_DISABLE);
+
     if (FT_OK != status) {
       std::cerr << std::format("SPI_ReadWrite:{}\n", status);
       return embeddedpp::Code::Generic;
@@ -178,9 +186,7 @@ bool SpiHost::set_clock(size_t clock) {
   FT4222_SPIClock clk_div = clocks[0];
 
   if (this->mpsse) {
-    ChannelConfig config = {.ClockRate     = (DWORD)clock,
-                            .LatencyTimer  = 2,
-                            .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3};
+    config.ClockRate = (DWORD)clock;
 
     FT_STATUS res = SPI_InitChannel(handle, &config);
     if (res != FT_OK) {
@@ -249,10 +255,6 @@ static std::optional<SpiHost> new_ft2232(DeviceInfo& device) {
     std::cerr << std::format("Open:{}\n", res);
     return std::nullopt;
   }
-
-  ChannelConfig config = {.ClockRate     = 1000000,  // 1MHz
-                          .LatencyTimer  = 2,
-                          .configOptions = SPI_CONFIG_OPTION_MODE0 | SPI_CONFIG_OPTION_CS_DBUS3};
 
   res = SPI_InitChannel(handle, &config);
   if (res != FT_OK) {
