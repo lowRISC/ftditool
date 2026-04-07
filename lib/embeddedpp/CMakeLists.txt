@@ -10,6 +10,7 @@ target_sources(embeddedpp
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES
             spi.hh
+            gpio.hh
             helpers.hh
 )
 
