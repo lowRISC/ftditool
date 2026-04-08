@@ -12,6 +12,7 @@
 
 #include "ftdi/ftdi.hh"
 #include "ftdi/spi_host.hh"
+#include "ftdi/gpio.hh"
 #include "flash/flash.hh"
 #include "commands.hh"
 #include "ftdi/log.hh"
@@ -41,10 +42,9 @@ static std::vector<ftdi::DeviceInfo> scan() {
 }
 
 static std::unique_ptr<argparse::ArgumentParser>
-new_flash_command(const std::string& name, const std::string& desc) {
+new_command(const std::string& name, const std::string& desc) {
   auto cmd = std::make_unique<argparse::ArgumentParser>(name);
   cmd->add_description(desc);
-  cmd->add_argument("--interface", "-i").help("One of [spi, i2c, gpio]");
   cmd->add_argument("--traces", "-t")
       .help("Enable ftdi traces")
       .default_value(false)
@@ -52,6 +52,12 @@ new_flash_command(const std::string& name, const std::string& desc) {
   cmd->add_argument("--ftdi")
       .default_value(std::string("FT4222"))
       .help("Filter ftdi chips connected to USB");
+  return cmd;
+}
+
+static std::unique_ptr<argparse::ArgumentParser>
+new_flash_command(const std::string& name, const std::string& desc) {
+  auto cmd = new_command(name, desc);
   cmd->add_argument("--clock")
       .default_value(std::size_t{15000000})
       .help("The spi clock speed in Hz.")
@@ -76,6 +82,22 @@ handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
     return opt;
   }
   std::println("Can't open spi.");
+  exit(0);
+}
+
+static std::optional<ftdi::Gpio>
+handle_gpio_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
+  auto ftdi_filter = cmd->get<std::string>("--ftdi");
+  auto devices     = scan();
+  auto filtered    = ftdi::DeviceInfo::filter_by_description(devices, ftdi_filter);
+  if (filtered.empty()) {
+    std::print("No {} ftdi found.\n", ftdi_filter);
+    exit(0);
+  }
+  if (auto opt = ftdi::Gpio::from_device_info(filtered[0])) {
+    return opt;
+  }
+  std::println("Can't open GPIO.");
   exit(0);
 }
 
@@ -201,6 +223,19 @@ int main(int argc, char* argv[]) {
     commands::LoadFile(flash::Generic(*spih), filename, addr, true, quad).run();
 
     spih->close();
+    return 0;
+  };
+
+  auto gpio_write_cmd = new_command("gpio-write", "Write a value to an FTDI GPIO pin.");
+  gpio_write_cmd->add_argument("pin").help("GPIO pin number (0-3)").required().scan<'d', int>();
+  gpio_write_cmd->add_argument("value").help("Value to write (0 or 1)").required().scan<'d', int>();
+  program.add_subparser(*gpio_write_cmd);
+  commands["gpio-write"] = [&]() -> int {
+    auto pin   = static_cast<uint8_t>(gpio_write_cmd->get<int>("pin"));
+    auto value = gpio_write_cmd->get<int>("value") != 0;
+    auto gpio  = handle_gpio_command(gpio_write_cmd);
+    commands::GpioWrite(*gpio, pin, value).run();
+    gpio->close();
     return 0;
   };
 

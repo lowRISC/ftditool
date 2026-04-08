@@ -5,6 +5,7 @@
 #pragma once
 
 #include "flash/flash.hh"
+#include "embeddedpp/gpio.hh"
 #include "visuals/progressbar.hh"
 #include "visuals/throughput.hh"
 #include <fstream>
@@ -259,6 +260,25 @@ struct LoadFile : public Commands<T> {
     } else {
       return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
     }
+  }
+};
+
+template <typename T>
+  requires embeddedpp::Gpio<T>
+struct GpioWrite {
+  T& gpio;
+  uint8_t pin;
+  bool value;
+
+  GpioWrite(T& gpio, uint8_t pin, bool value) : gpio(gpio), pin(pin), value(value) {}
+
+  int run() {
+    if (is_error(gpio.set_pin(pin, value))) {
+      std::println("GPIO write failed");
+      return 1;
+    }
+    std::println("GPIO{} = {}", pin, value ? 1 : 0);
+    return 0;
   }
 };
 
