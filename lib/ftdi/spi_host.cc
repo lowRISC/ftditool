@@ -53,7 +53,7 @@ SpiHost::transfer(std::span<uint8_t> write, std::span<uint8_t> read) {
 
     FT4222_STATUS status;
     status = FT4222_SPIMaster_SingleWrite(handle, write.data(), write.size(), &transfered, false);
-    status = FT4222_SPIMaster_SingleRead(handle, read.data(), write.size(), &transfered, true);
+    status = FT4222_SPIMaster_SingleRead(handle, read.data(), read.size(), &transfered, true);
     if (FT4222_OK != status) {
       std::cerr << std::format("SingleReadWrite:{}\n", status);
       return embeddedpp::Code::Generic;
