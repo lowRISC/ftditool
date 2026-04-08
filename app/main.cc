@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto jedec_cmd = new_flash_command("jedec", "Test the ftdi connection.");
+  auto jedec_cmd = new_flash_command("jedec", "Read the JEDEC identifier.");
   program.add_subparser(*jedec_cmd);
   commands["jedec"] = [&]() -> int {
     auto spih = handle_flash_command(jedec_cmd);
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto sfdp_cmd = new_flash_command("sfdp", "Test the ftdi connection.");
+  auto sfdp_cmd = new_flash_command("sfdp", "Read serial flash description.");
   program.add_subparser(*sfdp_cmd);
   commands["sfdp"] = [&]() -> int {
     auto spih = handle_flash_command(sfdp_cmd);
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto read_page_cmd = new_flash_command("read-page", "Read a specific page");
+  auto read_page_cmd = new_flash_command("read-page", "Read a specific page.");
   read_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
   program.add_subparser(*read_page_cmd);
   commands["read-page"] = [&]() -> int {
@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back");
+  auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back.");
   test_page_cmd->add_argument("--addr")
       .help("The address to be loaded")
       .default_value(std::size_t{0})
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
   };
 
   auto verify_file_cmd = new_flash_command(
-      "verify-file", "Compare the hash if a file to hash of the flash content at the address.");
+      "verify-file", "Compare the hash of a file to the hash of the flash content at the address.");
   verify_file_cmd->add_argument("filename").help("The file path.");
   verify_file_cmd->add_argument("--addr")
       .help("The address to be loaded")
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
   };
 
   auto bootstrap_cmd = new_flash_command(
-      "bootstrap", "Write the content of a binary file to a address and reset the target");
+      "bootstrap", "Write the content of a binary file to an address and reset the target.");
   bootstrap_cmd->add_argument("filename").help("The file path.");
   bootstrap_cmd->add_argument("--addr")
       .help("The address to be loaded")
