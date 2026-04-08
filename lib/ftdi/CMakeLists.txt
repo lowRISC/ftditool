@@ -7,12 +7,14 @@ add_library(ftdipp)
 target_sources(ftdipp
     PRIVATE
         spi_host.cc
+        gpio.cc
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES
             ftdi.hh
             spi_host.hh
+            gpio.hh
             log.hh
 )
 
