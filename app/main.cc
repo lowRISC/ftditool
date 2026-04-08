@@ -33,11 +33,6 @@ static std::vector<ftdi::DeviceInfo> scan() {
     exit(0);
   }
 
-  // for (auto &device: devices) {
-  //   if (device.type == ftdi::DeviceType::Ftdi_unknown) {
-  //     std::println("Warning: device not {}");
-  //   }
-  // }
   return devices;
 }
 

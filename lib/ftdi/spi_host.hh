@@ -29,9 +29,6 @@ class SpiHost {
   explicit SpiHost(FT_HANDLE handle, bool mpsse = false) noexcept
       : handle(handle), mpsse(mpsse), traces(false) {}
   ~SpiHost() {
-    // std::println("destructor");
-    // TODO: fix copy elision.
-    // close();
   }
 
   void close() {
