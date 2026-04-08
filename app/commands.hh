@@ -63,11 +63,11 @@ struct ReadPage : public Commands<T> {
   int run() override {
     if (auto page = this->flash.single_read_page(addr)) {
       std::println("Single read {:#x} : {}", addr, *page);
+      return 0;
     } else {
       std::println("page failed");
+      return 1;
     }
-
-    return 1;
   }
 };
 
