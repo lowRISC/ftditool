@@ -33,10 +33,9 @@ struct ReadJedec : public Commands<T> {
     if (auto jedec = this->flash.jedec()) {
       std::println("{}", *jedec);
       return 0;
-    } else {
-      std::println("Jedec failed");
-      return 1;
     }
+    std::println("Jedec failed");
+    return 1;
   }
 };
 
@@ -64,10 +63,9 @@ struct ReadPage : public Commands<T> {
     if (auto page = this->flash.single_read_page(addr)) {
       std::println("Single read {:#x} : {}", addr, *page);
       return 0;
-    } else {
-      std::println("page failed");
-      return 1;
     }
+    std::println("page failed");
+    return 1;
   }
 };
 
@@ -257,9 +255,8 @@ struct LoadFile : public Commands<T> {
     if (bootstrap) {
       this->flash.reset();
       return 1;
-    } else {
-      return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
     }
+    return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
   }
 };
 
