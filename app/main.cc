@@ -141,7 +141,8 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto test_page_cmd = new_flash_command("test-page", "Write a pattern to a page and read it back.");
+  auto test_page_cmd =
+      new_flash_command("test-page", "Write a pattern to a page and read it back.");
   test_page_cmd->add_argument("--addr")
       .help("The address to be loaded")
       .default_value(std::size_t{0})
