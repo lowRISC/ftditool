@@ -218,8 +218,14 @@ struct LoadFile : public Commands<T> {
       return 0;
     }
 
+    bool addr4b = this->start_addr > 0xFFFFFF;
+
     if (!bootstrap) {
       this->flash.reset();
+    }
+    if (addr4b && !this->flash.enter_4b_addr()) {
+      std::println("Enter 4-byte address mode failed");
+      return 0;
     }
     if (quad && !this->flash.enable_quad(true)) {
       std::println("enable quad failed");
@@ -230,13 +236,19 @@ struct LoadFile : public Commands<T> {
     auto progress_bar = ProgressBar(buffer.size(), 50, "Loading").with_throughput();
     size_t addr       = start_addr;
     while (data.size() > 0) {
-      if ((addr % flash::SectorSize) == 0 && !this->flash.erase(addr)) {
-        std::println("Failed to erase block {:#x}", addr);
-        return 0;
+      if ((addr % flash::SectorSize) == 0) {
+        auto erased = addr4b ? this->flash.template erase<4, flash::Opcode::SectorErase4b>(addr)
+                             : this->flash.erase(addr);
+        if (!erased) {
+          std::println("Failed to erase block {:#x}", addr);
+          return 0;
+        }
       }
 
       std::optional<bool> res;
-      if (quad) {
+      if (addr4b) {
+        res = this->flash.template single_page_program<4>(addr, data.first<flash::PageSize>());
+      } else if (quad) {
         res = this->flash.quad_page_program(addr, data.first<flash::PageSize>());
       } else {
         res = this->flash.single_page_program(addr, data.first<flash::PageSize>());
