@@ -28,8 +28,7 @@ class SpiHost {
  public:
   explicit SpiHost(FT_HANDLE handle, bool mpsse = false) noexcept
       : handle(handle), mpsse(mpsse), traces(false) {}
-  ~SpiHost() {
-  }
+  ~SpiHost() {}
 
   void close() {
     if (mpsse) {
