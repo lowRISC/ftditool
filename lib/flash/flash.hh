@@ -199,19 +199,35 @@ class Generic {
     return true;
   }
 
-  Option<bool> erase(uint32_t address, Opcode op = Opcode::SectorErase) {
+  template <size_t ADDR_SIZE = 3, Opcode OP = Opcode::SectorErase>
+  Option<bool> erase(uint32_t address) {
+    static_assert(ADDR_SIZE == 3 || ADDR_SIZE == 4, "Only 3 or 4 byte addresses supported");
+    static_assert(
+        (ADDR_SIZE == 3 && (OP == Opcode::SectorErase || OP == Opcode::BlockErase32k ||
+                            OP == Opcode::BlockErase64k)) ||
+            (ADDR_SIZE == 4 && (OP == Opcode::SectorErase4b || OP == Opcode::BlockErase32k4b ||
+                                OP == Opcode::BlockErase64k4b)),
+        "Opcode should match address size");
+
     write_enable();
-    std::array<uint8_t, 4> cmd = {
-        op,
-        static_cast<uint8_t>(address >> 16),
-        static_cast<uint8_t>(address >> 8),
-        static_cast<uint8_t>(address >> 0),
-    };
+
+    std::array<uint8_t, 1 + ADDR_SIZE> cmd = {OP};
+    for (size_t i = 0; i < ADDR_SIZE; ++i) {
+      // This calculates the correct shift (24, 16, 8, 0 for 4-byte; 16, 8, 0 for 3-byte)
+      cmd[1 + i] = static_cast<uint8_t>(address >> (8 * (ADDR_SIZE - 1 - i)));
+    }
+
     auto ret = spih.transfer(cmd, std::span<uint8_t>());
     if (embeddedpp::is_error(ret)) {
       return std::nullopt;
     }
     return wait_not_busy();
+  }
+
+  Option<bool> enter_4b_addr() {
+    std::array<uint8_t, 1> cmd = {Opcode::Enter4bAddr};
+    TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
+    return true;
   }
 
   Option<bool> reset() {
@@ -233,14 +249,23 @@ class Generic {
     return ret[0];
   }
 
+  template <size_t ADDR_SIZE = 3>
   Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
+    static_assert(ADDR_SIZE == 3 || ADDR_SIZE == 4, "Only 3 or 4 byte addresses supported");
+
+    Opcode op;
+    if constexpr (ADDR_SIZE == 3) {
+      op = Opcode::PageProgram;
+    } else {
+      op = Opcode::PageProgram4b;
+    }
     write_enable();
-    std::array<uint8_t, 256 + 4> cmd = {
-        Opcode::PageProgram,
-        static_cast<uint8_t>(address >> 16),
-        static_cast<uint8_t>(address >> 8),
-        static_cast<uint8_t>(address >> 0),
-    };
+
+    std::array<uint8_t, 256 + 1 + ADDR_SIZE> cmd = {op};
+    for (size_t i = 0; i < ADDR_SIZE; ++i) {
+      // This calculates the correct shift (24, 16, 8, 0 for 4-byte; 16, 8, 0 for 3-byte)
+      cmd[1 + i] = static_cast<uint8_t>(address >> (8 * (ADDR_SIZE - 1 - i)));
+    }
 
     auto slice = std::span<uint8_t>(cmd).last<256>();
 
