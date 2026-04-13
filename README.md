@@ -1,23 +1,26 @@
-# ftditool: A C++ implementation for SPI Flash and GPIO leveraging FTDI MPSSE-enabled chips.
+# FTDI Tool
+> A C++ implementation for SPI Flash and GPIO leveraging MPSSE-enabled FTDI chips.
 
-`ftditool` supports **SPI** and **GPIO** over **FT4222** and **FT2232** chips. The FT4222 specifically supports fast **QSPI** transactions.
+`ftditool` is a utility for interfacing with hardware via FTDI chips.
 
-## Getting Started
+Key featuers:
+- Supports **SPI** (serial peripheral interface) and **GPIO** (general-purpose input and output) transactions.
+- Compatible with **FT4222** and **FT2232** chips.
+- Fast **QuadSPI** support for FT4222 chips.
 
-Install the dependencies using Nix or any other method:
+## Usage guide
+
+`ftditool` can be easily installed using [Nix](https://nix.dev/install-nix.html):
 
 ```sh
-nix develop
+nix shell github:lowrisc/ftditool
 ```
 
-### Build:
-```bash
-cmake -B build -S ./ && cmake --build build
-```
+Alternatively you can build the tool from yourself by following the developer guide below.
 
-### Usage:
+### Arguments
 
-Run with the `--help` argument for more information:
+Once built, you can run the tool with the `--help` argument for more information:
 
 ```sh
 build/ftditool --help
@@ -35,24 +38,38 @@ build/ftditool jedec
 build/ftditool read-page --addr 0x8000
 ```
 
-For a full list of commands:
-
-```sh
-build/ftditool --help
-```
-
 For an example of a real-world application of `ftditool`, check out the [mocha](https://github.com/lowRISC/mocha/blob/main/util/fpga_runner.py) repository.
 
-## Nix
+## Developer guide
 
-`ftditool` can be easily installed using **Nix**:
+To automatically get an environment where you can build the tool from source you can use Nix.
+Run the following command in the root of the repository:
 
 ```sh
-nix shell github:lowrisc/ftditool
+nix develop
 ```
-----
 
-## Development
+You can manually install the dependencies by looking in the "flake.nix" file.
+
+
+### Build manually
+
+Compiling from source:
+
+```sh
+cmake -B build -S ./
+cmake --build build
+```
+
 ### Dependency graph
+
 ![Dependency graph](doc/img/deps.png)
 
+## Contributing
+
+Feel free to open issues if you have any questions or would like to contribute.
+We recommend opening an issue to discuss a contribution before preparing a pull request.
+
+## License
+
+Unless otherwise noted, everything in this repository is covered by the Apache License, Version 2.0.
