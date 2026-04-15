@@ -5,11 +5,11 @@
 #pragma once
 
 #include "ftd2xx.h"
-#include <cstdint>
 #include <optional>
 #include <vector>
 #include <iostream>
 #include "device_info.hh"
+#include "libusb.hh"
 
 namespace ftdi {
 
@@ -19,7 +19,11 @@ class Discovery {
    * @brief Scans for all connected FTDI devices.
    * @return A vector of devices if successful, or std::nullopt if the driver call failed.
    */
-  static std::optional<std::vector<DeviceInfo>> scan() {
+
+  static std::optional<std::vector<DeviceInfo>> scan(uint16_t pid) {
+    // Detach ftdi_sio (if present) so D2XX can enumerate the device.
+    detach_ftdi_sio(pid);
+
     DWORD num_devs = 0;
 
     // 1. Get the number of devices

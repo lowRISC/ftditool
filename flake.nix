@@ -42,7 +42,7 @@
             ft4222
             libmpsse
           ];
-          buildInputs = [ft4222 libmpsse ftd2xx];
+          buildInputs = with pkgs; [ft4222 libmpsse ftd2xx libusb1 systemd];
           shellHook = ''
             # Setting LD_LIBRARY_PATH for libftd2xx
             export LD_LIBRARY_PATH="${ftd2xx}/lib:$LD_LIBRARY_PATH"

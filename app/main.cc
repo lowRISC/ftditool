@@ -21,8 +21,8 @@
 
 using Action = std::function<int()>;
 
-static std::vector<ftdi::DeviceInfo> scan() {
-  auto result = ftdi::Discovery::scan();
+static std::vector<ftdi::DeviceInfo> scan(uint16_t pid = 0x6010) {
+  auto result = ftdi::Discovery::scan(pid);
   if (!result) {
     std::cerr << "Error: Failed to communicate with FTDI driver." << std::endl;
     exit(0);
@@ -61,11 +61,11 @@ new_flash_command(const std::string& name, const std::string& desc) {
 }
 
 static std::optional<ftdi::SpiHost>
-handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
+handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd, uint16_t pid) {
   auto ftdi     = cmd->get<std::string>("--ftdi");
   auto traces   = cmd->get<bool>("--traces");
   auto clock    = cmd->get<size_t>("--clock");
-  auto devices  = scan();
+  auto devices  = scan(pid);
   auto filtered = ftdi::DeviceInfo::filter_by_description(devices, ftdi);
   if (filtered.empty()) {
     std::print("No {} ftdi found.\n", ftdi);
@@ -81,9 +81,9 @@ handle_flash_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
 }
 
 static std::optional<ftdi::Gpio>
-handle_gpio_command(std::unique_ptr<argparse::ArgumentParser>& cmd) {
+handle_gpio_command(std::unique_ptr<argparse::ArgumentParser>& cmd, uint16_t pid) {
   auto ftdi_filter = cmd->get<std::string>("--ftdi");
-  auto devices     = scan();
+  auto devices     = scan(pid);
   auto filtered    = ftdi::DeviceInfo::filter_by_description(devices, ftdi_filter);
   if (filtered.empty()) {
     std::print("No {} ftdi found.\n", ftdi_filter);
@@ -100,13 +100,20 @@ int main(int argc, char* argv[]) {
   std::map<std::string, Action> commands;
 
   argparse::ArgumentParser program("ftditool");
+  program.add_argument("--pid")
+      .default_value(std::uint16_t{0x6010})
+      .help(
+          "The usb product id, in case the ftdi_sio driver needs to be detached. Defaults to "
+          "FT2232H")
+      .scan<'x', std::uint16_t>();
 
   argparse::ArgumentParser list_devices_cmd("list-devices");
   list_devices_cmd.add_description("List FTDI devices.");
   program.add_subparser(list_devices_cmd);
   commands["list-devices"] = [&]() -> int {
+    auto pid = program.get<uint16_t>("--pid");
     auto idx = 0;
-    for (auto device : scan()) {
+    for (auto device : scan(pid)) {
       std::print("{}: {}\n", idx++, device);
     }
     return 0;
@@ -115,7 +122,8 @@ int main(int argc, char* argv[]) {
   auto jedec_cmd = new_flash_command("jedec", "Read the JEDEC identifier.");
   program.add_subparser(*jedec_cmd);
   commands["jedec"] = [&]() -> int {
-    auto spih = handle_flash_command(jedec_cmd);
+    auto pid  = program.get<uint16_t>("--pid");
+    auto spih = handle_flash_command(jedec_cmd, pid);
     commands::ReadJedec(flash::Generic(*spih)).run();
     spih->close();
     return 0;
@@ -124,7 +132,8 @@ int main(int argc, char* argv[]) {
   auto sfdp_cmd = new_flash_command("sfdp", "Read serial flash description.");
   program.add_subparser(*sfdp_cmd);
   commands["sfdp"] = [&]() -> int {
-    auto spih = handle_flash_command(sfdp_cmd);
+    auto pid  = program.get<uint16_t>("--pid");
+    auto spih = handle_flash_command(sfdp_cmd, pid);
     commands::ReadSfdp(flash::Generic(*spih)).run();
     spih->close();
     return 0;
@@ -134,8 +143,9 @@ int main(int argc, char* argv[]) {
   read_page_cmd->add_argument("--addr").help("The page address").scan<'x', std::size_t>();
   program.add_subparser(*read_page_cmd);
   commands["read-page"] = [&]() -> int {
+    auto pid  = program.get<uint16_t>("--pid");
     auto addr = read_page_cmd->get<std::size_t>("--addr");
-    auto spih = handle_flash_command(read_page_cmd);
+    auto spih = handle_flash_command(read_page_cmd, pid);
     commands::ReadPage(flash::Generic(*spih), addr).run();
     spih->close();
     return 0;
@@ -150,9 +160,10 @@ int main(int argc, char* argv[]) {
   test_page_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*test_page_cmd);
   commands["test-page"] = [&]() -> int {
+    auto pid  = program.get<uint16_t>("--pid");
     auto addr = test_page_cmd->get<std::size_t>("--addr");
     auto quad = test_page_cmd->get<bool>("--quad");
-    auto spih = handle_flash_command(test_page_cmd);
+    auto spih = handle_flash_command(test_page_cmd, pid);
     commands::TestPage(flash::Generic(*spih), addr, quad).run();
 
     spih->close();
@@ -169,10 +180,11 @@ int main(int argc, char* argv[]) {
   load_file_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*load_file_cmd);
   commands["load-file"] = [&]() -> int {
+    auto pid      = program.get<uint16_t>("--pid");
     auto filename = load_file_cmd->get<std::string>("filename");
     auto addr     = load_file_cmd->get<std::size_t>("--addr");
     auto quad     = load_file_cmd->get<bool>("--quad");
-    auto spih     = handle_flash_command(load_file_cmd);
+    auto spih     = handle_flash_command(load_file_cmd, pid);
     commands::LoadFile(flash::Generic(*spih), filename, addr, false, quad).run();
 
     spih->close();
@@ -192,10 +204,11 @@ int main(int argc, char* argv[]) {
       .implicit_value(true);
   program.add_subparser(*verify_file_cmd);
   commands["verify-file"] = [&]() -> int {
+    auto pid      = program.get<uint16_t>("--pid");
     auto filename = verify_file_cmd->get<std::string>("filename");
     auto addr     = verify_file_cmd->get<std::size_t>("--addr");
     auto quad     = verify_file_cmd->get<bool>("--quad");
-    auto spih     = handle_flash_command(verify_file_cmd);
+    auto spih     = handle_flash_command(verify_file_cmd, pid);
     commands::VerifyFile(flash::Generic(*spih), filename, addr, quad).run();
 
     spih->close();
@@ -212,10 +225,11 @@ int main(int argc, char* argv[]) {
   bootstrap_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   program.add_subparser(*bootstrap_cmd);
   commands["bootstrap"] = [&]() -> int {
+    auto pid      = program.get<uint16_t>("--pid");
     auto filename = bootstrap_cmd->get<std::string>("filename");
     auto addr     = bootstrap_cmd->get<std::size_t>("--addr");
     auto quad     = bootstrap_cmd->get<bool>("--quad");
-    auto spih     = handle_flash_command(bootstrap_cmd);
+    auto spih     = handle_flash_command(bootstrap_cmd, pid);
     commands::LoadFile(flash::Generic(*spih), filename, addr, true, quad).run();
 
     spih->close();
@@ -227,9 +241,10 @@ int main(int argc, char* argv[]) {
   gpio_write_cmd->add_argument("value").help("Value to write (0 or 1)").required().scan<'d', int>();
   program.add_subparser(*gpio_write_cmd);
   commands["gpio-write"] = [&]() -> int {
+    auto pid   = program.get<uint16_t>("--pid");
     auto pin   = static_cast<uint8_t>(gpio_write_cmd->get<int>("pin"));
     auto value = gpio_write_cmd->get<int>("value") != 0;
-    auto gpio  = handle_gpio_command(gpio_write_cmd);
+    auto gpio  = handle_gpio_command(gpio_write_cmd, pid);
     commands::GpioWrite(*gpio, pin, value).run();
     gpio->close();
     return 0;
