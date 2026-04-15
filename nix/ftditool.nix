@@ -12,6 +12,8 @@
   argparse,
   magic-enum,
   picosha2,
+  libusb1,
+  systemd,
   makeWrapper,
 }:
 stdenv.mkDerivation {
@@ -33,6 +35,8 @@ stdenv.mkDerivation {
     magic-enum
     picosha2
     ftd2xx
+    libusb1
+    systemd
   ];
 
   cmakeFlags = [

@@ -8,6 +8,7 @@ target_sources(ftdipp
     PRIVATE
         spi_host.cc
         gpio.cc
+        libusb.cc
     PUBLIC
         FILE_SET HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
@@ -16,6 +17,7 @@ target_sources(ftdipp
             spi_host.hh
             gpio.hh
             log.hh
+            libusb.hh
 )
 
 target_include_directories(ftdipp
@@ -25,7 +27,8 @@ target_include_directories(ftdipp
 )
 
 target_link_libraries(ftdipp
-    PUBLIC magic_enum::magic_enum embeddedpp mpsse ft4222 
+    PUBLIC magic_enum::magic_enum embeddedpp mpsse ft4222
+    PRIVATE usb-1.0 udev
 )
 target_compile_options(ftdipp PRIVATE "-fno-exceptions")
 
