@@ -260,7 +260,7 @@ static std::optional<SpiHost> new_ft2232(DeviceInfo& device) {
   const uint32_t channel = 0;
   Init_libMPSSE();
 
-  std::println("Openning {}, channel {}", device.serial_number, channel);
+  std::println("Opening {}, channel {}", device.serial_number, channel);
   res = SPI_OpenChannel(channel, &handle);
   if (res != FT_OK) {
     std::cerr << std::format("Open:{}\n", res);
