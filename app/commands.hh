@@ -241,6 +241,7 @@ struct LoadFile : public Commands<T> {
     std::span<uint8_t> data(buffer);
     auto progress_bar = ProgressBar(buffer.size(), 50, "Loading").with_throughput();
     size_t addr       = start_addr;
+    this->flash.write_enable();
     while (data.size() > 0) {
       if (!skip_erase && (addr % flash::SectorSize) == 0) {
         auto erased = addr4b ? this->flash.template erase<4, flash::Opcode::SectorErase4b>(addr)
@@ -251,13 +252,15 @@ struct LoadFile : public Commands<T> {
         }
       }
 
+      this->flash.wait_not_busy();
       std::optional<bool> res;
       if (addr4b) {
-        res = this->flash.template single_page_program<4>(addr, data.first<flash::PageSize>());
+        res = this->flash.template single_page_program_non_blocking<4>(
+            addr, data.first<flash::PageSize>());
       } else if (quad) {
         res = this->flash.quad_page_program(addr, data.first<flash::PageSize>());
       } else {
-        res = this->flash.single_page_program(addr, data.first<flash::PageSize>());
+        res = this->flash.single_page_program_non_blocking(addr, data.first<flash::PageSize>());
       }
 
       if (!res) {
@@ -269,6 +272,7 @@ struct LoadFile : public Commands<T> {
       data = data.subspan(std::min(data.size(), std::size_t{flash::PageSize}));
       progress_bar.update(buffer.size() - data.size());
     }
+    this->flash.write_enable(false);
 
     if (bootstrap) {
       this->flash.reset();
