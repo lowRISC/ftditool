@@ -250,7 +250,7 @@ class Generic {
   }
 
   template <size_t ADDR_SIZE = 3>
-  Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
+  Option<bool> single_page_program_non_blocking(uint32_t address, std::span<uint8_t, 256> data) {
     static_assert(ADDR_SIZE == 3 || ADDR_SIZE == 4, "Only 3 or 4 byte addresses supported");
 
     Opcode op;
@@ -259,7 +259,6 @@ class Generic {
     } else {
       op = Opcode::PageProgram4b;
     }
-    write_enable();
 
     std::array<uint8_t, 256 + 1 + ADDR_SIZE> cmd = {op};
     for (size_t i = 0; i < ADDR_SIZE; ++i) {
@@ -271,6 +270,13 @@ class Generic {
 
     std::ranges::copy(data, slice.begin());
     TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
+    return true;
+  }
+
+  template <size_t ADDR_SIZE = 3>
+  Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
+    write_enable();
+    single_page_program_non_blocking(address, data);
     wait_not_busy();
     return write_enable(false);
   }
