@@ -188,9 +188,15 @@ struct LoadFile : public Commands<T> {
   std::string& filename;
   bool quad;
   bool bootstrap;
+  bool skip_erase;
   LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool bootstrap = false,
-           bool quad = false)
-      : Commands<T>(f), filename(filename), start_addr(addr), quad(quad), bootstrap(bootstrap) {}
+           bool skip_erase = false, bool quad = false)
+      : Commands<T>(f),
+        filename(filename),
+        start_addr(addr),
+        quad(quad),
+        bootstrap(bootstrap),
+        skip_erase(skip_erase) {}
 
   int run() override {
     if ((this->start_addr % flash::SectorSize) != 0) {
@@ -236,7 +242,7 @@ struct LoadFile : public Commands<T> {
     auto progress_bar = ProgressBar(buffer.size(), 50, "Loading").with_throughput();
     size_t addr       = start_addr;
     while (data.size() > 0) {
-      if ((addr % flash::SectorSize) == 0) {
+      if (!skip_erase && (addr % flash::SectorSize) == 0) {
         auto erased = addr4b ? this->flash.template erase<4, flash::Opcode::SectorErase4b>(addr)
                              : this->flash.erase(addr);
         if (!erased) {

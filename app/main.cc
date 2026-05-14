@@ -223,14 +223,19 @@ int main(int argc, char* argv[]) {
       .default_value(std::size_t{0})
       .scan<'x', std::size_t>();
   bootstrap_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
+  bootstrap_cmd->add_argument("--skip-erase")
+      .help("Dont issue erase commands")
+      .default_value(false)
+      .implicit_value(true);
   program.add_subparser(*bootstrap_cmd);
   commands["bootstrap"] = [&]() -> int {
-    auto pid      = program.get<uint16_t>("--pid");
-    auto filename = bootstrap_cmd->get<std::string>("filename");
-    auto addr     = bootstrap_cmd->get<std::size_t>("--addr");
-    auto quad     = bootstrap_cmd->get<bool>("--quad");
-    auto spih     = handle_flash_command(bootstrap_cmd, pid);
-    commands::LoadFile(flash::Generic(*spih), filename, addr, true, quad).run();
+    auto pid        = program.get<uint16_t>("--pid");
+    auto filename   = bootstrap_cmd->get<std::string>("filename");
+    auto addr       = bootstrap_cmd->get<std::size_t>("--addr");
+    auto quad       = bootstrap_cmd->get<bool>("--quad");
+    auto skip_erase = bootstrap_cmd->get<bool>("--skip-erase");
+    auto spih       = handle_flash_command(bootstrap_cmd, pid);
+    commands::LoadFile(flash::Generic(*spih), filename, addr, true, skip_erase, quad).run();
 
     spih->close();
     return 0;
