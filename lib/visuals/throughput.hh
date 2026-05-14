@@ -4,6 +4,7 @@
 
 #pragma once
 #include <chrono>
+#include <cmath>
 #include <print>
 
 struct Throughput {
@@ -37,15 +38,15 @@ struct Throughput {
     if (short_fmt) {
       return std::format("{}", human_size(throughput, "bps"));
     }
-    return std::format("Transfered {} in {}s, {}", human_size(mb, "b"), seconds,
+    return std::format("{} in {}, {}", human_size(mb, "b"), human_time(seconds),
                        human_size(throughput, "b/s"));
   }
 
-  void show() { std::println("{}", render()); }
+  void show(bool short_fmt = true) { std::println("{}", render(short_fmt)); }
 
  private:
   std::string human_size(float num, const char* suffix = "B") {
-    std::array<std::string, 6> units{"", "ki", "Mi", "Gi", "Ti", "Pi"};
+    constexpr std::array<std::string_view, 6> units{"", "ki", "Mi", "Gi", "Ti", "Pi"};
     for (auto unit : units) {
       if (abs(num) < 1024) {
         return std::format("{:.1f} {}{}", num, unit, suffix);
@@ -53,5 +54,28 @@ struct Throughput {
       num /= 1024;
     }
     return "";
+  }
+
+  std::string human_time(float seconds) {
+    if (seconds <= 0.0f) {
+      return "0";
+    }
+
+    constexpr std::array<std::string_view, 3> units{"s", "m", "h"};
+    std::string result;
+    auto num = static_cast<int>(std::round(seconds));
+
+    for (size_t i = 0; i < units.size(); ++i) {
+      int part = (i < static_cast<int>(units.size()) - 1) ? num % 60 : num;
+      if (part != 0) {
+        result = std::format("{}{}", part, units[i]) + result;
+      }
+      num /= 60;
+      if (num == 0) {
+        break;
+      }
+    }
+
+    return result;
   }
 };
