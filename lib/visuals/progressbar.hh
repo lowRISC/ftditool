@@ -33,7 +33,7 @@ struct ProgressBar {
     std::string tp_str = "";
     if (tp) {
       tp->total(progress);
-      tp_str = tp->render();
+      tp_str = tp->render(false);
     }
 
     std::print("\r\033[32m{} [", label);
