@@ -155,19 +155,19 @@ struct VerifyFile : public Commands<T> {
       }
 
       if (!page) {
-        std::println("Program page {:#x} failed.", addr);
+        std::println("Read page {:#x} failed.", addr);
         return 0;
       }
 
-      uint32_t chunck = std::min(remainder, std::size_t{flash::PageSize});
+      uint32_t chunk = std::min(remainder, std::size_t{flash::PageSize});
       std::span<uint8_t> data(*page);
-      if (chunck < data.size()) {
-        data = data.subspan(0, chunck);
+      if (chunk < data.size()) {
+        data = data.subspan(0, chunk);
       }
       flash_hasher.process(data.begin(), data.end());
 
-      addr += chunck;
-      remainder -= chunck;
+      addr += chunk;
+      remainder -= chunk;
       progress_bar.update(file_size - remainder);
     }
 
