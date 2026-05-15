@@ -224,7 +224,7 @@ int main(int argc, char* argv[]) {
       .scan<'x', std::size_t>();
   bootstrap_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
   bootstrap_cmd->add_argument("--skip-erase")
-      .help("Dont issue erase commands")
+      .help("Don't issue erase commands")
       .default_value(false)
       .implicit_value(true);
   program.add_subparser(*bootstrap_cmd);

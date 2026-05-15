@@ -17,14 +17,14 @@ struct Throughput {
     progress             = 0;
   }
 
-  Throughput& add(size_t transfered) {
-    progress += transfered;
+  Throughput& add(size_t transferred) {
+    progress += transferred;
     elapsed = std::chrono::high_resolution_clock::now();
     return *this;
   }
 
-  Throughput& total(size_t transfered) {
-    progress = transfered;
+  Throughput& total(size_t transferred) {
+    progress = transferred;
     elapsed  = std::chrono::high_resolution_clock::now();
     return *this;
   }
