@@ -204,25 +204,24 @@ bool SpiHost::set_clock(size_t clock) {
       std::cerr << std::format("failed to update the clock:{}\n", res);
       return false;
     }
+    return true;
+  }
 
-  } else {
-    const size_t baseClk = 60000000;
-    for (auto div : clocks) {
-      if ((baseClk >> div) <= clock) {
-        clk_div = div;
-        break;
-      }
-    }
-
-    FT4222_STATUS status;
-    status = FT4222_SPIMaster_Init(handle, SPI_IO_SINGLE, clk_div, CLK_IDLE_LOW, CLK_LEADING,
-                                   SLAVE_SELECT(0));
-    if (FT4222_OK != status) {
-      std::cerr << std::format("failed to update the clock:{}\n", status);
-      return false;
+  const size_t baseClk = 60000000;
+  for (auto div : clocks) {
+    if ((baseClk >> div) <= clock) {
+      clk_div = div;
+      break;
     }
   }
-  return true;
+
+  FT4222_STATUS status;
+  status = FT4222_SPIMaster_Init(handle, SPI_IO_SINGLE, clk_div, CLK_IDLE_LOW, CLK_LEADING,
+                                 SLAVE_SELECT(0));
+  if (FT4222_OK != status) {
+    std::cerr << std::format("failed to update the clock:{}\n", status);
+    return false;
+  }
 }
 
 static std::optional<SpiHost> new_ft4222(DeviceInfo& device) {
