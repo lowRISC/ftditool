@@ -272,6 +272,7 @@ struct LoadFile : public Commands<T> {
       data = data.subspan(std::min(data.size(), std::size_t{flash::PageSize}));
       progress_bar.update(buffer.size() - data.size());
     }
+    this->flash.wait_not_busy();
     this->flash.write_enable(false);
 
     if (bootstrap) {
