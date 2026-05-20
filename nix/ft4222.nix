@@ -10,7 +10,7 @@ stdenv.mkDerivation rec {
   pname = "ft4222";
   version = "1.4.4.232";
   src = fetchzip {
-    url = "https://ftdichip.com/wp-content/uploads/2025/04/libft4222-linux-${version}.zip";
+    url = "https://storage.googleapis.com/lowrisc-ci-cache/external/libft4222-linux-${version}.zip";
     hash = "sha256-WGy6llULMvjPcc8L1e7qPh9xYB1a2sFKyoLI7WZWNp0=";
   };
 

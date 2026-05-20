@@ -10,7 +10,7 @@ stdenv.mkDerivation rec {
   pname = "libmpsse";
   version = "1.0.8";
   src = fetchzip {
-    url = "https://ftdichip.com/wp-content/uploads/2025/08/libmpsse-x86_64-${version}.tgz";
+    url = "https://storage.googleapis.com/lowrisc-ci-cache/external/libmpsse-x86_64-${version}.tgz";
     hash = "sha256-9JwRDfQj6KMV+k1WxgKq6IB3hgSXNI9sqX3NNQz2n3c=";
   };
 
