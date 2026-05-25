@@ -277,9 +277,8 @@ struct LoadFile : public Commands<T> {
 
     if (bootstrap) {
       this->flash.reset();
-      return 1;
     }
-    return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
+    return 1;
   }
 };
 
