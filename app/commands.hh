@@ -12,6 +12,7 @@
 #include <iostream>
 #include <picosha2.h>
 #include <print>
+#include <elfio/elfio.hpp>
 
 namespace commands {
 
@@ -280,6 +281,178 @@ struct LoadFile : public Commands<T> {
       return 1;
     }
     return commands::VerifyFile(this->flash, filename, start_addr, quad).run();
+  }
+};
+
+template <typename T>
+struct LoadFileElf : public Commands<T> {
+  std::string& filename;
+  bool quad;
+  bool bootstrap;
+  bool skip_erase;
+  LoadFileElf(flash::Generic<T> f, std::string& filename, bool bootstrap = false,
+              bool skip_erase = false, bool quad = false)
+      : Commands<T>(f),
+        filename(filename),
+        quad(quad),
+        bootstrap(bootstrap),
+        skip_erase(skip_erase) {}
+
+  int run() override {
+    ELFIO::elfio reader;
+    if (!reader.load(filename)) {
+      std::println("Invalid ELF file");
+      return 0;
+    }
+
+    std::vector<ELFIO::segment*> load_segments;
+    for (auto& segment : reader.segments) {
+      if (segment->get_type() == ELFIO::PT_LOAD) {
+        load_segments.push_back(std::to_address(segment));
+      }
+    }
+
+    // Given a start and end interval, return the interval in sectors containing them,
+    // by rounding the start address down and end address up to the next sector-aligned
+    // address.
+    auto containing_sectors = [](auto start, auto end) {
+      return std::make_pair(start & ~(flash::SectorSize - 1),
+                            (end + flash::SectorSize - 1) & ~(flash::SectorSize - 1));
+    };
+
+    bool addr4b     = false;
+    auto erase_size = 0;
+    auto load_size  = 0;
+    for (auto segment : load_segments) {
+      auto phys_start = segment->get_physical_address();
+      auto phys_end   = phys_start + segment->get_memory_size();
+      auto sectors    = containing_sectors(phys_start, phys_end);
+      load_size += segment->get_file_size();
+      erase_size += (sectors.second - sectors.first);
+      if (phys_start > 0xFFFFFF || phys_end > 0xFFFFFF) {
+        addr4b = true;
+      }
+    }
+
+    if (!bootstrap) {
+      this->flash.reset();
+    }
+    if (addr4b && !this->flash.enter_4b_addr()) {
+      std::println("Enter 4-byte address mode failed");
+      return 0;
+    }
+    if (quad && !this->flash.enable_quad(true)) {
+      std::println("enable quad failed");
+      return 0;
+    }
+
+    this->flash.write_enable(true);
+
+    std::optional<bool> res;
+
+    // The length of the data to be loaded into memory (file size) may be less than
+    // the size of the segment in memory (memory size), in which case the excess represents
+    // zero-initialised data (e.g .bss section). Therefore, the memory size is used for
+    // erasing the flash, and then the file resident data is loaded into it, which may be
+    // shorter.
+
+    // Erase sectors containing segment data.
+    if (!skip_erase) {
+      auto erased         = 0;
+      auto erase_progress = ProgressBar(erase_size, 50, "Erasing").with_throughput();
+      for (auto segment : load_segments) {
+        auto phys_start = segment->get_physical_address();
+        auto phys_end   = phys_start + segment->get_memory_size();
+        auto sectors    = containing_sectors(phys_start, phys_end);
+
+        auto addr = sectors.first;
+        while (addr < sectors.second) {
+          res = addr4b ? this->flash.template erase<4, flash::Opcode::SectorErase4b>(addr)
+                       : this->flash.erase(addr);
+          if (!res) {
+            std::println("Failed to erase block {:#x}", addr);
+            return 0;
+          }
+
+          addr += flash::SectorSize;
+          erased += flash::SectorSize;
+          erase_progress.update(erased);
+        }
+      }
+    }
+
+    this->flash.wait_not_busy();
+
+    // Then, load the segment data from the file.
+    auto loaded        = 0;
+    auto load_progress = ProgressBar(load_size, 50, "Loading").with_throughput();
+    for (auto segment : load_segments) {
+      auto addr = segment->get_physical_address();
+      std::span<const uint8_t> data(reinterpret_cast<const uint8_t*>(segment->get_data()),
+                                    segment->get_file_size());
+
+      // Segments may start at an address that is not aligned to the flash page size.
+      // Page program commands may start within a page, but may wrap-around or be invalid
+      // if going over the page boundary, so only write until we are aligned to the page size.
+      if ((addr % flash::PageSize) != 0) {
+        auto to_next = flash::PageSize - (addr % flash::PageSize);
+        auto n       = std::min(to_next, data.size());
+        std::vector<uint8_t> page(data.first(n).begin(), data.first(n).end());
+
+        if (addr4b) {
+          res = this->flash.template single_page_program_non_blocking<4>(addr, page);
+        } else if (quad) {
+          res = this->flash.quad_page_program(addr, page);
+        } else {
+          res = this->flash.single_page_program_non_blocking(addr, page);
+        }
+        if (!res) {
+          std::println("Program page {:#x} failed.", addr);
+          return 0;
+        }
+
+        this->flash.wait_not_busy();
+
+        addr += n;
+        loaded += n;
+        data = data.subspan(n);
+        load_progress.update(loaded);
+      }
+
+      // Now we are aligned to the flash page size, write pages as normal.
+      while (data.size() > 0) {
+        auto n = std::min(data.size(), std::size_t{flash::PageSize});
+        std::vector<uint8_t> page(data.first(n).begin(), data.first(n).end());
+
+        this->flash.wait_not_busy();
+
+        if (addr4b) {
+          res = this->flash.template single_page_program_non_blocking<4>(addr, page);
+        } else if (quad) {
+          res = this->flash.quad_page_program(addr, page);
+        } else {
+          res = this->flash.single_page_program_non_blocking(addr, page);
+        }
+        if (!res) {
+          std::println("Program page {:#x} failed.", addr);
+          return 0;
+        }
+
+        addr += n;
+        loaded += n;
+        data = data.subspan(n);
+        load_progress.update(loaded);
+      }
+    }
+
+    this->flash.wait_not_busy();
+    this->flash.write_enable(false);
+
+    if (bootstrap) {
+      this->flash.reset();
+    }
+
+    return 1;
   }
 };
 
