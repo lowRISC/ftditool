@@ -14,6 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(argparse QUIET)
 find_package(magic_enum QUIET)
 find_package(picosha2 QUIET)
+find_package(elfio QUIET)
 # Check if nix is not providing these dependencies.
 if (NOT argparse_FOUND)
   include(FetchContent)
@@ -36,11 +37,23 @@ if (NOT argparse_FOUND)
   )
   FetchContent_MakeAvailable(picosha2)
 
+  FetchContent_Declare(
+      elfio
+      GIT_REPOSITORY https://github.com/serge1/ELFIO
+      GIT_TAG Release_3.12
+  )
+  FetchContent_MakeAvailable(elfio)
+
 else()
   # This is a hack becase picosha2 does not define an install phase in CMakefile.
   add_library(picosha2 INTERFACE)
   target_include_directories(picosha2 INTERFACE
       ${CMAKE_PREFIX_PATH}/include
+  )
+  # This is a hack becase elfio does not define an install phase in CMakefile.
+  add_library(elfio INTERFACE)
+  target_include_directories(elfio INTERFACE
+      ${CMAKE_PREFIX_PATH}/elfio
   )
 endif()
 
@@ -53,6 +66,5 @@ add_subdirectory(lib/visuals)
 
 add_executable(ftditool app/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")
-target_link_libraries(ftditool PRIVATE visuals picosha2 argparse::argparse flash ftdipp)
+target_link_libraries(ftditool PRIVATE visuals picosha2 elfio argparse::argparse flash ftdipp)
 install(TARGETS ftditool DESTINATION bin)
-

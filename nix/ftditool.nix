@@ -12,6 +12,7 @@
   argparse,
   magic-enum,
   picosha2,
+  elfio,
   libusb1,
   systemd,
   makeWrapper,
@@ -34,6 +35,7 @@ stdenv.mkDerivation {
     argparse
     magic-enum
     picosha2
+    elfio
     ftd2xx
     libusb1
     systemd
