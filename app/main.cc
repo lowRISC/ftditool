@@ -241,6 +241,30 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
+  auto bootstrap_elf_cmd = new_flash_command(
+      "bootstrap-elf", "Write the loadable contents of an ELF file and reset the target.");
+  bootstrap_elf_cmd->add_argument("filename").help("The file path.");
+  bootstrap_elf_cmd->add_argument("--quad")
+      .help("Use qSPI")
+      .default_value(false)
+      .implicit_value(true);
+  bootstrap_elf_cmd->add_argument("--skip-erase")
+      .help("Don't issue erase commands")
+      .default_value(false)
+      .implicit_value(true);
+  program.add_subparser(*bootstrap_elf_cmd);
+  commands["bootstrap-elf"] = [&]() -> int {
+    auto pid        = program.get<uint16_t>("--pid");
+    auto filename   = bootstrap_elf_cmd->get<std::string>("filename");
+    auto quad       = bootstrap_elf_cmd->get<bool>("--quad");
+    auto skip_erase = bootstrap_elf_cmd->get<bool>("--skip-erase");
+    auto spih       = handle_flash_command(bootstrap_elf_cmd, pid);
+    commands::LoadFileElf(flash::Generic(*spih), filename, true, skip_erase, quad).run();
+
+    spih->close();
+    return 0;
+  };
+
   auto gpio_write_cmd = new_command("gpio-write", "Write a value to an FTDI GPIO pin.");
   gpio_write_cmd->add_argument("pin").help("GPIO pin number (0-3)").required().scan<'d', int>();
   gpio_write_cmd->add_argument("value").help("Value to write (0 or 1)").required().scan<'d', int>();
