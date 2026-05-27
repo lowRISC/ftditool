@@ -8,6 +8,7 @@
 #include "jedec.hh"
 #include "sfdp.hh"
 #include <cstdint>
+#include <cassert>
 
 namespace flash {
 
@@ -135,8 +136,9 @@ class Generic {
 
   Option<Sector> quad_read_sector(uint32_t address) { return quad_read<4096>(address); }
 
-  Option<bool>
-  quad_page_program(uint32_t address, std::span<uint8_t, 256> data, uint8_t upcode = 0x32) {
+  Option<bool> quad_page_program(uint32_t address, std::span<uint8_t> data, uint8_t upcode = 0x32) {
+    // Page program commands should not cross page boundaries.
+    assert((address % flash::PageSize) + data.size() <= flash::PageSize);
     write_enable();
     std::array<uint8_t, 1> cmd = {upcode};
 
@@ -250,7 +252,9 @@ class Generic {
   }
 
   template <size_t ADDR_SIZE = 3>
-  Option<bool> single_page_program_non_blocking(uint32_t address, std::span<uint8_t, 256> data) {
+  Option<bool> single_page_program_non_blocking(uint32_t address, std::span<uint8_t> data) {
+    // Page program commands should not cross page boundaries.
+    assert((address % flash::PageSize) + data.size() <= flash::PageSize);
     static_assert(ADDR_SIZE == 3 || ADDR_SIZE == 4, "Only 3 or 4 byte addresses supported");
 
     Opcode op;
@@ -274,7 +278,9 @@ class Generic {
   }
 
   template <size_t ADDR_SIZE = 3>
-  Option<bool> single_page_program(uint32_t address, std::span<uint8_t, 256> data) {
+  Option<bool> single_page_program(uint32_t address, std::span<uint8_t> data) {
+    // Page program commands should not cross page boundaries.
+    assert((address % flash::PageSize) + data.size() <= flash::PageSize);
     write_enable();
     single_page_program_non_blocking(address, data);
     wait_not_busy();
