@@ -58,6 +58,9 @@ else()
   )
 endif()
 
+if(NOT DEFINED FTDITOOL_VERSION)
+  set(FTDITOOL_VERSION "dev")
+endif()
 
 
 add_subdirectory(lib/embeddedpp)
@@ -67,5 +70,6 @@ add_subdirectory(lib/visuals)
 
 add_executable(ftditool app/main.cc)
 target_include_directories(ftditool PUBLIC "./src/lib" "./src/")
+target_compile_definitions(ftditool PRIVATE FTDITOOL_VERSION="${FTDITOOL_VERSION}")
 target_link_libraries(ftditool PRIVATE visuals picosha2 elfio argparse::argparse flash ftdipp)
 install(TARGETS ftditool DESTINATION bin)

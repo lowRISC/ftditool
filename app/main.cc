@@ -99,7 +99,7 @@ handle_gpio_command(std::unique_ptr<argparse::ArgumentParser>& cmd, uint16_t pid
 int main(int argc, char* argv[]) {
   std::map<std::string, Action> commands;
 
-  argparse::ArgumentParser program("ftditool");
+  argparse::ArgumentParser program("ftditool", FTDITOOL_VERSION);
   program.add_argument("--pid")
       .default_value(std::uint16_t{0x6010})
       .help(

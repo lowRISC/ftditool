@@ -17,7 +17,7 @@
   systemd,
   makeWrapper,
 }:
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   pname = "ftditool";
   version = "0.4.0";
   src = ../.;
@@ -43,6 +43,7 @@ stdenv.mkDerivation {
 
   cmakeFlags = [
     "-DCMAKE_BUILD_TYPE=Release"
+    "-DFTDITOOL_VERSION=${version}"
   ];
 
   postInstall = ''
