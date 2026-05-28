@@ -222,6 +222,7 @@ bool SpiHost::set_clock(size_t clock) {
     std::cerr << std::format("failed to update the clock:{}\n", status);
     return false;
   }
+  return true;
 }
 
 static std::optional<SpiHost> new_ft4222(DeviceInfo& device) {
