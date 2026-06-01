@@ -380,8 +380,6 @@ struct LoadFileElf : public Commands<T> {
       }
     }
 
-    this->flash.wait_not_busy();
-
     // Then, load the segment data from the file.
     auto loaded        = 0;
     auto load_progress = ProgressBar(load_size, 50, "Loading").with_throughput();
@@ -398,6 +396,8 @@ struct LoadFileElf : public Commands<T> {
         auto n       = std::min(to_next, data.size());
         std::vector<uint8_t> page(data.first(n).begin(), data.first(n).end());
 
+        this->flash.wait_not_busy();
+
         if (addr4b) {
           res = this->flash.template single_page_program_non_blocking<4>(addr, page);
         } else if (quad) {
@@ -409,8 +409,6 @@ struct LoadFileElf : public Commands<T> {
           std::println("Program page {:#x} failed.", addr);
           return 0;
         }
-
-        this->flash.wait_not_busy();
 
         addr += n;
         loaded += n;
