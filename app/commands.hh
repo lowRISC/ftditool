@@ -218,7 +218,7 @@ struct LoadFile : public Commands<T> {
       std::println("File is empty");
       return 0;
     }
-    auto size = file_size + (file_size - file_size % flash::PageSize);
+    auto size = (file_size + flash::PageSize - 1) & ~(flash::PageSize - 1);
     std::vector<uint8_t> buffer(size, 0xff);
     if (!file.read(reinterpret_cast<char*>(buffer.data()), file_size)) {
       std::println("Error reading the file.");
