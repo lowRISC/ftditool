@@ -264,16 +264,17 @@ class Generic {
       op = Opcode::PageProgram4b;
     }
 
-    std::array<uint8_t, 256 + 1 + ADDR_SIZE> cmd = {op};
+    auto total_size = 1 + ADDR_SIZE + data.size();
+    std::array<uint8_t, 1 + ADDR_SIZE + flash::PageSize> cmd = {op};
     for (size_t i = 0; i < ADDR_SIZE; ++i) {
       // This calculates the correct shift (24, 16, 8, 0 for 4-byte; 16, 8, 0 for 3-byte)
       cmd[1 + i] = static_cast<uint8_t>(address >> (8 * (ADDR_SIZE - 1 - i)));
     }
 
-    auto slice = std::span<uint8_t>(cmd).last<256>();
+    auto payload = std::span<uint8_t>(cmd).last<flash::PageSize>();
+    std::ranges::copy(data, payload.begin());
 
-    std::ranges::copy(data, slice.begin());
-    TRY_OPT(spih.transfer(cmd, std::span<uint8_t>()));
+    TRY_OPT(spih.transfer(std::span<uint8_t>(cmd).subspan(0, total_size), std::span<uint8_t>()));
     return true;
   }
 
