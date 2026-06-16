@@ -264,7 +264,7 @@ class Generic {
       op = Opcode::PageProgram4b;
     }
 
-    auto total_size = 1 + ADDR_SIZE + data.size();
+    auto total_size                                          = 1 + ADDR_SIZE + data.size();
     std::array<uint8_t, 1 + ADDR_SIZE + flash::PageSize> cmd = {op};
     for (size_t i = 0; i < ADDR_SIZE; ++i) {
       // This calculates the correct shift (24, 16, 8, 0 for 4-byte; 16, 8, 0 for 3-byte)
