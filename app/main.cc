@@ -279,6 +279,16 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
+  auto flash_reset_cmd = new_flash_command("flash-reset", "Reset flash.");
+  program.add_subparser(*flash_reset_cmd);
+  commands["flash-reset"] = [&]() -> int {
+    auto pid  = program.get<uint16_t>("--pid");
+    auto spih = handle_flash_command(flash_reset_cmd, pid);
+    commands::ResetFlash(flash::Generic(*spih)).run();
+    spih->close();
+    return 0;
+  };
+
   if (argc == 1) {
     std::cout << program;  // This prints the auto-generated help
     return 0;

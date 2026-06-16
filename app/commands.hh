@@ -448,7 +448,16 @@ struct LoadFileElf : public Commands<T> {
     if (bootstrap) {
       this->flash.reset();
     }
+    return 1;
+  }
+};
 
+template <typename T>
+struct ResetFlash : public Commands<T> {
+  ResetFlash(flash::Generic<T> f) : Commands<T>(f) {}
+
+  int run() override {
+    this->flash.reset();
     return 1;
   }
 };
