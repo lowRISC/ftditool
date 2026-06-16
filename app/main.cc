@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
     auto addr     = load_file_cmd->get<std::size_t>("--addr");
     auto quad     = load_file_cmd->get<bool>("--quad");
     auto spih     = handle_flash_command(load_file_cmd, pid);
-    commands::LoadFile(flash::Generic(*spih), filename, addr, false, quad).run();
+    commands::LoadFile(flash::Generic(*spih), filename, addr, quad).run();
 
     spih->close();
     return 0;
@@ -235,7 +235,7 @@ int main(int argc, char* argv[]) {
     auto quad       = bootstrap_cmd->get<bool>("--quad");
     auto skip_erase = bootstrap_cmd->get<bool>("--skip-erase");
     auto spih       = handle_flash_command(bootstrap_cmd, pid);
-    commands::LoadFile(flash::Generic(*spih), filename, addr, true, skip_erase, quad).run();
+    commands::LoadFile(flash::Generic(*spih), filename, addr, skip_erase, quad).run();
 
     spih->close();
     return 0;
@@ -259,7 +259,7 @@ int main(int argc, char* argv[]) {
     auto quad       = bootstrap_elf_cmd->get<bool>("--quad");
     auto skip_erase = bootstrap_elf_cmd->get<bool>("--skip-erase");
     auto spih       = handle_flash_command(bootstrap_elf_cmd, pid);
-    commands::LoadFileElf(flash::Generic(*spih), filename, true, skip_erase, quad).run();
+    commands::LoadFileElf(flash::Generic(*spih), filename, skip_erase, quad).run();
 
     spih->close();
     return 0;
