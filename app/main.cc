@@ -170,27 +170,6 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto load_file_cmd =
-      new_flash_command("load-file", "Write the content of a file to the address and verify it.");
-  load_file_cmd->add_argument("filename").help("The file path.");
-  load_file_cmd->add_argument("--addr")
-      .help("The address to be loaded")
-      .default_value(std::size_t{0})
-      .scan<'x', std::size_t>();
-  load_file_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
-  program.add_subparser(*load_file_cmd);
-  commands["load-file"] = [&]() -> int {
-    auto pid      = program.get<uint16_t>("--pid");
-    auto filename = load_file_cmd->get<std::string>("filename");
-    auto addr     = load_file_cmd->get<std::size_t>("--addr");
-    auto quad     = load_file_cmd->get<bool>("--quad");
-    auto spih     = handle_flash_command(load_file_cmd, pid);
-    commands::LoadFile(flash::Generic(*spih), filename, addr, quad).run();
-
-    spih->close();
-    return 0;
-  };
-
   auto verify_file_cmd = new_flash_command(
       "verify-file", "Compare the hash of a file to the hash of the flash content at the address.");
   verify_file_cmd->add_argument("filename").help("The file path.");
@@ -215,50 +194,43 @@ int main(int argc, char* argv[]) {
     return 0;
   };
 
-  auto bootstrap_cmd = new_flash_command(
-      "bootstrap", "Write the content of a binary file to an address and reset the target.");
-  bootstrap_cmd->add_argument("filename").help("The file path.");
-  bootstrap_cmd->add_argument("--addr")
-      .help("The address to be loaded")
-      .default_value(std::size_t{0})
-      .scan<'x', std::size_t>();
-  bootstrap_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
-  bootstrap_cmd->add_argument("--skip-erase")
+  auto load_file_cmd = new_flash_command(
+      "load-file", "Write the content of a binary file to a destination address.");
+  load_file_cmd->add_argument("filename").help("The file path.");
+  load_file_cmd->add_argument("--addr").help("The address to be loaded").scan<'x', std::size_t>();
+  load_file_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
+  load_file_cmd->add_argument("--skip-erase")
       .help("Don't issue erase commands")
       .default_value(false)
       .implicit_value(true);
-  program.add_subparser(*bootstrap_cmd);
-  commands["bootstrap"] = [&]() -> int {
+  program.add_subparser(*load_file_cmd);
+  commands["load-file"] = [&]() -> int {
     auto pid        = program.get<uint16_t>("--pid");
-    auto filename   = bootstrap_cmd->get<std::string>("filename");
-    auto addr       = bootstrap_cmd->get<std::size_t>("--addr");
-    auto quad       = bootstrap_cmd->get<bool>("--quad");
-    auto skip_erase = bootstrap_cmd->get<bool>("--skip-erase");
-    auto spih       = handle_flash_command(bootstrap_cmd, pid);
+    auto filename   = load_file_cmd->get<std::string>("filename");
+    auto addr       = load_file_cmd->get<std::size_t>("--addr");
+    auto quad       = load_file_cmd->get<bool>("--quad");
+    auto skip_erase = load_file_cmd->get<bool>("--skip-erase");
+    auto spih       = handle_flash_command(load_file_cmd, pid);
     commands::LoadFile(flash::Generic(*spih), filename, addr, skip_erase, quad).run();
 
     spih->close();
     return 0;
   };
 
-  auto bootstrap_elf_cmd = new_flash_command(
-      "bootstrap-elf", "Write the loadable contents of an ELF file and reset the target.");
-  bootstrap_elf_cmd->add_argument("filename").help("The file path.");
-  bootstrap_elf_cmd->add_argument("--quad")
-      .help("Use qSPI")
-      .default_value(false)
-      .implicit_value(true);
-  bootstrap_elf_cmd->add_argument("--skip-erase")
+  auto load_elf_cmd = new_flash_command("load-elf", "Write the loadable contents of an ELF file.");
+  load_elf_cmd->add_argument("filename").help("The file path.");
+  load_elf_cmd->add_argument("--quad").help("Use qSPI").default_value(false).implicit_value(true);
+  load_elf_cmd->add_argument("--skip-erase")
       .help("Don't issue erase commands")
       .default_value(false)
       .implicit_value(true);
-  program.add_subparser(*bootstrap_elf_cmd);
-  commands["bootstrap-elf"] = [&]() -> int {
+  program.add_subparser(*load_elf_cmd);
+  commands["load-elf"] = [&]() -> int {
     auto pid        = program.get<uint16_t>("--pid");
-    auto filename   = bootstrap_elf_cmd->get<std::string>("filename");
-    auto quad       = bootstrap_elf_cmd->get<bool>("--quad");
-    auto skip_erase = bootstrap_elf_cmd->get<bool>("--skip-erase");
-    auto spih       = handle_flash_command(bootstrap_elf_cmd, pid);
+    auto filename   = load_elf_cmd->get<std::string>("filename");
+    auto quad       = load_elf_cmd->get<bool>("--quad");
+    auto skip_erase = load_elf_cmd->get<bool>("--skip-erase");
+    auto spih       = handle_flash_command(load_elf_cmd, pid);
     commands::LoadFileElf(flash::Generic(*spih), filename, skip_erase, quad).run();
 
     spih->close();
