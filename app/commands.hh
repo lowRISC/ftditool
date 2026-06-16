@@ -188,16 +188,10 @@ struct LoadFile : public Commands<T> {
   std::size_t start_addr;
   std::string& filename;
   bool quad;
-  bool bootstrap;
   bool skip_erase;
-  LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0, bool bootstrap = false,
+  LoadFile(flash::Generic<T> f, std::string& filename, std::size_t addr = 0,
            bool skip_erase = false, bool quad = false)
-      : Commands<T>(f),
-        filename(filename),
-        start_addr(addr),
-        quad(quad),
-        bootstrap(bootstrap),
-        skip_erase(skip_erase) {}
+      : Commands<T>(f), filename(filename), start_addr(addr), quad(quad), skip_erase(skip_erase) {}
 
   int run() override {
     if ((this->start_addr % flash::SectorSize) != 0) {
@@ -227,9 +221,6 @@ struct LoadFile : public Commands<T> {
 
     bool addr4b = this->start_addr > 0xFFFFFF;
 
-    if (!bootstrap) {
-      this->flash.reset();
-    }
     if (addr4b && !this->flash.enter_4b_addr()) {
       std::println("Enter 4-byte address mode failed");
       return 0;
@@ -276,9 +267,6 @@ struct LoadFile : public Commands<T> {
     this->flash.wait_not_busy();
     this->flash.write_enable(false);
 
-    if (bootstrap) {
-      this->flash.reset();
-    }
     return 1;
   }
 };
@@ -287,15 +275,10 @@ template <typename T>
 struct LoadFileElf : public Commands<T> {
   std::string& filename;
   bool quad;
-  bool bootstrap;
   bool skip_erase;
-  LoadFileElf(flash::Generic<T> f, std::string& filename, bool bootstrap = false,
-              bool skip_erase = false, bool quad = false)
-      : Commands<T>(f),
-        filename(filename),
-        quad(quad),
-        bootstrap(bootstrap),
-        skip_erase(skip_erase) {}
+  LoadFileElf(flash::Generic<T> f, std::string& filename, bool skip_erase = false,
+              bool quad = false)
+      : Commands<T>(f), filename(filename), quad(quad), skip_erase(skip_erase) {}
 
   int run() override {
     ELFIO::elfio reader;
@@ -333,9 +316,6 @@ struct LoadFileElf : public Commands<T> {
       }
     }
 
-    if (!bootstrap) {
-      this->flash.reset();
-    }
     if (addr4b && !this->flash.enter_4b_addr()) {
       std::println("Enter 4-byte address mode failed");
       return 0;
@@ -445,9 +425,6 @@ struct LoadFileElf : public Commands<T> {
     this->flash.wait_not_busy();
     this->flash.write_enable(false);
 
-    if (bootstrap) {
-      this->flash.reset();
-    }
     return 1;
   }
 };
