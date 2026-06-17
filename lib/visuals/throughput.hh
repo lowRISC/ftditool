@@ -67,7 +67,7 @@ struct Throughput {
 
     for (size_t i = 0; i < units.size(); ++i) {
       int part = (i < static_cast<int>(units.size()) - 1) ? num % 60 : num;
-      if (part != 0) {
+      if (i == 0 || part != 0) {
         result = std::format("{}{}", part, units[i]) + result;
       }
       num /= 60;
