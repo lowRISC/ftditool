@@ -6,10 +6,11 @@
 #include "throughput.hh"
 
 struct ProgressBar {
-  bool finished  = false;
-  int width      = 100;
-  int total      = 0;
-  float progress = 0;
+  bool finished   = false;
+  int width       = 100;
+  int total       = 0;
+  float progress  = 0;
+  int last_length = 0;
   std::string label;
   std::optional<Throughput> tp;
 
@@ -40,10 +41,28 @@ struct ProgressBar {
     for (int i = 0; i < width; ++i) {
       std::print("{}", i < filled ? "■" : " ");
     }
-    std::cout << "] " << (int)(this->progress * 100) << "%\033[33m " << tp_str << "\033[0m "
-              << std::flush;
+
+    std::string output =
+        std::format("] {}%\033[33m {}\033[0m", (int)(this->progress * 100), tp_str);
+
+    std::cout << output;
+
+    if (tp) {
+      auto current_length = output.length();
+      if (this->last_length > current_length) {
+        /* There are some trailing characters left over from the last time
+         * throughput was printed. Overwrite them with spaces, and then
+         * backspace back to the current string length. */
+        auto n = this->last_length - current_length;
+        std::cout << std::string(n, ' ') << std::string(n, '\b');
+      }
+      this->last_length = current_length;
+    }
+
+    std::cout << std::flush;
+
     if (this->finished) {
-      std::println("");
+      std::cout << '\n';
     }
   }
 };
