@@ -10,7 +10,7 @@ stdenv.mkDerivation rec {
   pname = "ftd2xx";
   version = "1.4.34";
   src = fetchzip {
-    url = "https://storage.googleapis.com/lowrisc-ci-cache/external/libftd2xx-linux-x86_64-${version}.tgz";
+    url = "https://storage.googleapis.com/lowrisc-ci-longterm-cache/libftd2xx-linux-x86_64-${version}.tgz";
     hash = "sha256-O47VO8DpNJt2VTjvyEwA4sxLegUrwdazeIh3JHW2URI=";
   };
 
